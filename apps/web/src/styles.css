@@ -408,16 +408,14 @@ textarea::placeholder {
 .boot-logo {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, #6d5efc, #a855f7);
-  color: #fff;
-  font-weight: 800;
-  font-size: 18px;
-  text-decoration: none !important;
+  display: block;
   margin-bottom: 10px;
   flex: none;
+}
+.rail-logo img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 .rail-item {
   width: 66px;

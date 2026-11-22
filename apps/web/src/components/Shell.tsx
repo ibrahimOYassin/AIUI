@@ -37,7 +37,7 @@ export function Shell() {
     <div className="shell">
       <nav className="rail" aria-label="Main">
         <NavLink to="/" className="rail-logo" title="AIUI">
-          <span>A</span>
+          <img src="/logo.svg" alt="AIUI" />
         </NavLink>
         {NAV.map((item) => (
           <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `rail-item ${isActive ? 'active' : ''}`} title={item.label}>

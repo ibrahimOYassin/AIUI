@@ -40,7 +40,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'register' }) {
     return (
       <div className="auth">
         <div className="auth-card">
-          <div className="boot-logo">A</div>
+          <img className="boot-logo" src="/logo.svg" alt="AIUI" />
           <h1>Sign-ups are closed.</h1>
           <p className="muted">Ask an administrator for an account.</p>
           <Link to="/signin" className="btn btn-primary btn-md auth-submit">
@@ -54,7 +54,7 @@ export function AuthPage({ mode }: { mode: 'signin' | 'register' }) {
   return (
     <div className="auth">
       <form className="auth-card" onSubmit={(e) => void submit(e)}>
-        <div className="boot-logo">A</div>
+        <img className="boot-logo" src="/logo.svg" alt="AIUI" />
         <h1>{register ? 'Create your AIUI account' : 'Sign in to AIUI'}</h1>
         <p className="muted">Build AI workflows and agents without writing code. One account for the IDE and the Marketplace.</p>
         {register && (

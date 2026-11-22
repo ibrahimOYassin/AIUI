@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400" role="img" aria-labelledby="t">
+  <title id="t">AIUI</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c70ff"/>
+      <stop offset="1" stop-color="#4a3be0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- The mark (same drawing as logo.svg, scaled to 320) -->
+  <g transform="translate(40 40) scale(0.625)">
+    <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+    <g fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M150 384 L256 136 L362 384"/>
+      <path d="M197 274 L315 274"/>
+    </g>
+    <rect x="122" y="344" width="80" height="80" rx="18" fill="#ffffff"/>
+    <rect x="310" y="344" width="80" height="80" rx="18" fill="#ffffff"/>
+    <circle cx="256" cy="136" r="46" fill="#ffc94d"/>
+  </g>
+
+  <!-- A I U I, drawn as strokes so no font is needed -->
+  <g fill="none" stroke="#1c1b2e" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M432 270 L492 130 L552 270"/>
+    <path d="M454 222 L530 222"/>
+    <path d="M610 130 L610 270"/>
+    <path d="M672 130 L672 215 A55 55 0 0 0 782 215 L782 130"/>
+    <path d="M844 130 L844 270"/>
+  </g>
+</svg>

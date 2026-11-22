@@ -32,14 +32,14 @@ export function App() {
   if (booting) {
     body = (
       <div className="boot">
-        <div className="boot-logo">A</div>
+        <img className="boot-logo" src="/logo.svg" alt="AIUI" />
         <Spinner label="Starting AIUI…" />
       </div>
     );
   } else if (bootError) {
     body = (
       <div className="boot">
-        <div className="boot-logo">A</div>
+        <img className="boot-logo" src="/logo.svg" alt="AIUI" />
         <ErrorBox message={bootError} onRetry={() => void boot()} />
         <p className="muted small">
           Start the server with <code>npm start</code> (or <code>npm run dev</code>) in the project folder.

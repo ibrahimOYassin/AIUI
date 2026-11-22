@@ -1,3 +1,5 @@
+<img src="assets/logo.svg" width="88" alt="AIUI logo">
+
 # AIUI
 
 Build AI workflows, AI agents and teams of agents in your browser — without writing code.
