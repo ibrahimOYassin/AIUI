@@ -1,0 +1,12 @@
+.git
+.claude
+node_modules
+**/node_modules
+**/dist
+data
+*.log
+.env
+**/bin
+**/obj
+**/__pycache__
+docs

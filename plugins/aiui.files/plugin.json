@@ -1,0 +1,53 @@
+{
+  "id": "aiui.files",
+  "name": "Files & Uploads",
+  "version": "1.0.0",
+  "description": "Read files, save reports to disk, and upload files to another system — a storage bucket link, a document API, any upload endpoint.",
+  "author": "AIUI",
+  "icon": "folder-up",
+  "category": "Files",
+  "listing": { "summary": "Read, write and upload files and reports.", "priceCents": 0, "tags": ["files", "upload", "reports", "storage"] },
+  "nodes": [
+    {
+      "type": "file.read", "label": "Read file", "kind": "action", "category": "Files", "icon": "file-input",
+      "description": "Read a file from disk as text, JSON or a list of lines.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "path", "label": "File path", "type": "text", "templated": true, "required": true, "placeholder": "data/orders.json" },
+        { "key": "format", "label": "Read as", "type": "select", "default": "text", "options": [
+          { "value": "text", "label": "Text" }, { "value": "json", "label": "JSON data" }, { "value": "lines", "label": "List of lines" } ] }
+      ],
+      "outputFields": [{ "key": "content", "label": "Content" }, { "key": "path", "label": "File path" }, { "key": "size", "label": "Size (bytes)" }],
+      "codegen": { "csharp": { "className": "FileReadStep" } }
+    },
+    {
+      "type": "file.write", "label": "Save file", "kind": "action", "category": "Files", "icon": "file-output",
+      "description": "Save text — a report, an export, a log — to a file.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Saved" }],
+      "fields": [
+        { "key": "path", "label": "File path", "type": "text", "templated": true, "required": true, "placeholder": "reports/summary.md" },
+        { "key": "content", "label": "Content", "type": "textarea", "templated": true, "required": true, "rows": 6 },
+        { "key": "append", "label": "Add to the end instead of replacing", "type": "boolean", "default": false }
+      ],
+      "outputFields": [{ "key": "path", "label": "File path" }, { "key": "size", "label": "Size (bytes)" }],
+      "codegen": { "csharp": { "className": "FileWriteStep" } }
+    },
+    {
+      "type": "file.upload", "label": "Upload file", "kind": "action", "category": "Files", "icon": "upload",
+      "description": "Send a file to another system over HTTP: a pre-signed storage link, a document API, a form upload.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Uploaded" }],
+      "fields": [
+        { "key": "connection", "label": "API account", "type": "connection", "connectionType": "http_api", "help": "Optional. Adds the base URL and credentials." },
+        { "key": "filePath", "label": "File to upload", "type": "text", "templated": true, "required": true, "placeholder": "reports/summary.md" },
+        { "key": "url", "label": "Upload URL", "type": "text", "templated": true, "required": true },
+        { "key": "mode", "label": "How to send it", "type": "select", "default": "multipart", "options": [
+          { "value": "multipart", "label": "As a form upload (multipart)" }, { "value": "raw", "label": "As the request body (PUT/POST)" } ] },
+        { "key": "method", "label": "Method", "type": "select", "default": "POST", "options": [{ "value": "POST", "label": "POST" }, { "value": "PUT", "label": "PUT" }] },
+        { "key": "fieldName", "label": "Form field name", "type": "text", "default": "file", "showIf": { "field": "mode", "equals": "multipart" }, "group": "Advanced" },
+        { "key": "headers", "label": "Headers", "type": "keyvalue", "templated": true, "default": {}, "group": "Advanced" }
+      ],
+      "outputFields": [{ "key": "status", "label": "Status code" }, { "key": "body", "label": "Response data" }, { "key": "ok", "label": "Succeeded (true/false)" }],
+      "codegen": { "csharp": { "className": "FileUploadStep" } }
+    }
+  ]
+}

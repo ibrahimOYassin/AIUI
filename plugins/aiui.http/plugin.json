@@ -1,0 +1,50 @@
+{
+  "id": "aiui.http",
+  "name": "APIs",
+  "version": "1.0.0",
+  "description": "Automate any application that has a web API: read data, create records, trigger actions.",
+  "author": "AIUI",
+  "icon": "globe",
+  "category": "Integrations",
+  "listing": { "summary": "Call any web API, with saved credentials.", "priceCents": 0, "tags": ["api", "http", "rest"], "builtin": true },
+  "connectionTypes": [
+    {
+      "type": "http_api", "label": "API account", "icon": "key-round",
+      "description": "The address and credentials of an application's API, saved once and reused.",
+      "fields": [
+        { "key": "baseUrl", "label": "Base URL", "type": "text", "placeholder": "https://api.example.com/v1", "help": "Steps can then use short paths like /orders." },
+        { "key": "authType", "label": "Sign-in method", "type": "select", "default": "none", "options": [
+          { "value": "none", "label": "None" }, { "value": "bearer", "label": "Bearer token" },
+          { "value": "header", "label": "API key in a header" }, { "value": "basic", "label": "Username and password" } ] },
+        { "key": "token", "label": "Token", "type": "secret", "showIf": { "field": "authType", "equals": "bearer" } },
+        { "key": "headerName", "label": "Header name", "type": "text", "default": "X-API-Key", "showIf": { "field": "authType", "equals": "header" } },
+        { "key": "apiKey", "label": "API key", "type": "secret", "showIf": { "field": "authType", "equals": "header" } },
+        { "key": "username", "label": "Username", "type": "text", "showIf": { "field": "authType", "equals": "basic" } },
+        { "key": "password", "label": "Password", "type": "secret", "showIf": { "field": "authType", "equals": "basic" } },
+        { "key": "headers", "label": "Headers sent with every call", "type": "keyvalue", "default": {}, "group": "Advanced" }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "type": "http.request", "label": "Call API", "kind": "action", "category": "Integrations", "icon": "globe",
+      "description": "Read from or send data to another application through its web API.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "connection", "label": "API account", "type": "connection", "connectionType": "http_api", "help": "Optional. Adds the base URL and credentials." },
+        { "key": "method", "label": "Action", "type": "select", "default": "GET", "required": true, "options": [
+          { "value": "GET", "label": "GET — read" }, { "value": "POST", "label": "POST — create / send" },
+          { "value": "PUT", "label": "PUT — replace" }, { "value": "PATCH", "label": "PATCH — update" },
+          { "value": "DELETE", "label": "DELETE — remove" } ] },
+        { "key": "url", "label": "URL", "type": "text", "templated": true, "required": true, "placeholder": "https://api.example.com/orders" },
+        { "key": "query", "label": "Query parameters", "type": "keyvalue", "templated": true, "default": {} },
+        { "key": "body", "label": "Data to send (JSON)", "type": "json", "templated": true, "rows": 6, "showIf": { "field": "method", "equals": ["POST", "PUT", "PATCH", "DELETE"] } },
+        { "key": "headers", "label": "Headers", "type": "keyvalue", "templated": true, "default": {}, "group": "Advanced" },
+        { "key": "timeout", "label": "Give up after (seconds)", "type": "number", "default": 60, "group": "Advanced" },
+        { "key": "failOnError", "label": "Stop when the API reports an error", "type": "boolean", "default": true, "group": "Advanced" }
+      ],
+      "outputFields": [{ "key": "body", "label": "Response data" }, { "key": "status", "label": "Status code" }, { "key": "ok", "label": "Succeeded (true/false)" }, { "key": "headers", "label": "Response headers" }],
+      "codegen": { "csharp": { "className": "HttpRequestStep" } }
+    }
+  ]
+}

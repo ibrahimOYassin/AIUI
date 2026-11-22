@@ -1,0 +1,25 @@
+{
+  "name": "@aiui/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "start:web": "tsx src/index.ts --web"
+  },
+  "dependencies": {
+    "@aiui/shared": "0.1.0",
+    "@anthropic-ai/sdk": "^1.12.0",
+    "express": "^5.1.0",
+    "fflate": "^0.8.2",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

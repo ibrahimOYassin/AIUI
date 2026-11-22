@@ -1,0 +1,148 @@
+{
+  "id": "aiui.ai",
+  "name": "AI",
+  "version": "1.0.0",
+  "description": "Ask a language model a question, or build an agent that decides which tools to use. Works with Claude, OpenAI and any OpenAI-compatible or local model server (Ollama, LM Studio, vLLM, OpenRouter).",
+  "author": "AIUI",
+  "icon": "sparkles",
+  "category": "AI",
+  "listing": { "summary": "Ask AI and AI Agent steps for any LLM, hosted or local.", "priceCents": 0, "tags": ["ai", "llm", "agent"], "builtin": true },
+  "connectionTypes": [
+    {
+      "type": "llm", "label": "AI model", "icon": "sparkles",
+      "description": "A language model: a hosted API with a key, or a model running on your own machine.",
+      "fields": [
+        { "key": "provider", "label": "Type", "type": "select", "default": "anthropic", "required": true, "options": [
+          { "value": "anthropic", "label": "Anthropic (Claude)" },
+          { "value": "openai", "label": "OpenAI-compatible (OpenAI, Ollama, LM Studio, OpenRouter…)" } ] },
+        { "key": "baseUrl", "label": "Address (URL)", "type": "text", "placeholder": "http://localhost:11434/v1", "help": "Where the model is served. Leave empty for the provider's default.",
+          "showIf": { "field": "provider", "equals": "openai" } },
+        { "key": "apiKey", "label": "API key", "type": "secret", "help": "Not needed for most local models." },
+        { "key": "model", "label": "Model", "type": "text", "required": true, "placeholder": "claude-opus-5-5" }
+      ],
+      "presets": [
+        { "label": "Claude", "values": { "provider": "anthropic", "baseUrl": "", "model": "claude-opus-5-5" } },
+        { "label": "OpenAI", "values": { "provider": "openai", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4o-mini" } },
+        { "label": "Ollama (local)", "values": { "provider": "openai", "baseUrl": "http://localhost:11434/v1", "model": "llama3.2" } },
+        { "label": "LM Studio (local)", "values": { "provider": "openai", "baseUrl": "http://localhost:1234/v1", "model": "local-model" } },
+        { "label": "OpenRouter", "values": { "provider": "openai", "baseUrl": "https://openrouter.ai/api/v1", "model": "" } }
+      ]
+    },
+    {
+      "type": "mcp", "label": "MCP server", "icon": "plug",
+      "description": "A Model Context Protocol server reachable over HTTP. Its tools can be called directly or handed to an agent.",
+      "fields": [
+        { "key": "url", "label": "Server URL", "type": "text", "required": true, "placeholder": "https://example.com/mcp" },
+        { "key": "token", "label": "Access token", "type": "secret", "help": "Sent as a Bearer token. Leave empty if the server needs none." },
+        { "key": "headers", "label": "Extra headers", "type": "keyvalue", "default": {}, "group": "Advanced" }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "type": "ai.prompt", "label": "Ask AI", "kind": "ai", "category": "AI", "icon": "message-square-text",
+      "description": "Send one question or instruction to a model and get its answer.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "connection", "label": "AI model", "type": "connection", "connectionType": "llm", "required": true },
+        { "key": "prompt", "label": "What to ask", "type": "textarea", "templated": true, "required": true, "rows": 6, "placeholder": "Summarise this for a busy manager: …" },
+        { "key": "system", "label": "How it should behave", "type": "textarea", "templated": true, "rows": 3, "placeholder": "You are a concise assistant." },
+        { "key": "parseJson", "label": "The answer is JSON — read it as data", "type": "boolean", "default": false, "group": "Advanced" },
+        { "key": "temperature", "label": "Creativity (temperature)", "type": "number", "group": "Advanced", "help": "0 = precise, 1 = creative. Not used by Claude models." },
+        { "key": "maxTokens", "label": "Maximum answer length (tokens)", "type": "number", "group": "Advanced" }
+      ],
+      "outputFields": [{ "key": "text", "label": "Answer" }, { "key": "data", "label": "Answer as data (JSON)" }],
+      "codegen": { "csharp": { "className": "AiPromptStep" } }
+    },
+    {
+      "type": "ai.agent", "label": "AI Agent", "kind": "ai", "category": "AI", "icon": "bot", "toolPort": true,
+      "description": "A model that works towards a goal and decides by itself which tools to use. Link steps from its Tools port to give it abilities — including other agents.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "connection", "label": "AI model", "type": "connection", "connectionType": "llm", "required": true },
+        { "key": "instructions", "label": "Role and instructions", "type": "textarea", "templated": true, "rows": 6, "placeholder": "You are a support agent for Acme. Be brief and friendly." },
+        { "key": "prompt", "label": "Task or message", "type": "textarea", "templated": true, "required": true, "rows": 3, "default": "{{input.message}}" },
+        { "key": "mcpServers", "label": "MCP servers it may use", "type": "connection", "connectionType": "mcp", "multiple": true, "default": [] },
+        { "key": "useHistory", "label": "Remember earlier chat messages", "type": "boolean", "default": true, "group": "Advanced" },
+        { "key": "maxTurns", "label": "Maximum thinking rounds", "type": "number", "default": 12, "group": "Advanced" },
+        { "key": "temperature", "label": "Creativity (temperature)", "type": "number", "group": "Advanced", "help": "Not used by Claude models." },
+        { "key": "maxTokens", "label": "Maximum answer length (tokens)", "type": "number", "group": "Advanced" }
+      ],
+      "outputFields": [{ "key": "text", "label": "Answer" }, { "key": "toolCalls", "label": "Tools it used" }],
+      "codegen": { "csharp": { "className": "AiAgentStep" } }
+    }
+  ],
+  "templates": [
+    {
+      "id": "aiui.ai.fetch-and-loop", "name": "Fetch and process a list", "type": "workflow", "icon": "list-checks",
+      "description": "Calls a public API, goes through the results one by one and logs each. Runs as-is — no keys needed.",
+      "graph": {
+        "nodes": [
+          { "id": "t1", "type": "trigger.manual", "name": "start", "position": { "x": 40, "y": 160 }, "config": { "sampleInput": {} } },
+          { "id": "a1", "type": "http.request", "name": "fetch_posts", "position": { "x": 320, "y": 160 }, "config": { "method": "GET", "url": "https://jsonplaceholder.typicode.com/posts", "query": { "_limit": "3" }, "headers": {}, "failOnError": true } },
+          { "id": "l1", "type": "logic.loop", "name": "each_post", "position": { "x": 600, "y": 160 }, "config": { "items": "{{fetch_posts.body}}" } },
+          { "id": "g1", "type": "util.log", "name": "log_title", "position": { "x": 880, "y": 80 }, "config": { "message": "Post {{item.id}}: {{item.title}}", "level": "info" } },
+          { "id": "g2", "type": "util.log", "name": "log_done", "position": { "x": 880, "y": 260 }, "config": { "message": "Finished {{each_post.count}} posts.", "level": "info" } }
+        ],
+        "edges": [
+          { "id": "e1", "source": "t1", "sourcePort": "out", "target": "a1" },
+          { "id": "e2", "source": "a1", "sourcePort": "out", "target": "l1" },
+          { "id": "e3", "source": "l1", "sourcePort": "item", "target": "g1" },
+          { "id": "e4", "source": "l1", "sourcePort": "done", "target": "g2" }
+        ]
+      }
+    },
+    {
+      "id": "aiui.ai.summarise-api", "name": "Summarise data with AI", "type": "workflow", "icon": "file-text",
+      "description": "Fetches data from an API and asks a model for a short summary. Add an AI model connection to run it.",
+      "graph": {
+        "nodes": [
+          { "id": "t1", "type": "trigger.manual", "name": "start", "position": { "x": 40, "y": 160 }, "config": { "sampleInput": {} } },
+          { "id": "a1", "type": "http.request", "name": "fetch_posts", "position": { "x": 320, "y": 160 }, "config": { "method": "GET", "url": "https://jsonplaceholder.typicode.com/posts", "query": { "_limit": "5" }, "headers": {}, "failOnError": true } },
+          { "id": "p1", "type": "ai.prompt", "name": "summarise", "position": { "x": 600, "y": 160 }, "config": { "connection": "", "prompt": "Summarise these posts in three bullet points:\n\n{{fetch_posts.body}}", "system": "You write short, plain summaries." } },
+          { "id": "g1", "type": "util.log", "name": "show_summary", "position": { "x": 880, "y": 160 }, "config": { "message": "{{summarise.text}}", "level": "info" } }
+        ],
+        "edges": [
+          { "id": "e1", "source": "t1", "sourcePort": "out", "target": "a1" },
+          { "id": "e2", "source": "a1", "sourcePort": "out", "target": "p1" },
+          { "id": "e3", "source": "p1", "sourcePort": "out", "target": "g1" }
+        ]
+      }
+    },
+    {
+      "id": "aiui.ai.support-agent", "name": "Agent with a tool", "type": "agent", "icon": "bot",
+      "description": "A chat agent that can look up a to-do item through an API when asked. Shows how any step becomes a tool.",
+      "graph": {
+        "nodes": [
+          { "id": "t1", "type": "trigger.chat", "name": "chat", "position": { "x": 40, "y": 120 }, "config": { "sampleMessage": "What is to-do number 3 and is it done?" } },
+          { "id": "g1", "type": "ai.agent", "name": "assistant", "position": { "x": 340, "y": 120 }, "config": { "connection": "", "instructions": "You are a helpful assistant. Use the lookup_todo tool when the user asks about a to-do item. Answer briefly.", "prompt": "{{input.message}}", "mcpServers": [], "useHistory": true, "maxTurns": 12 } },
+          { "id": "a1", "type": "http.request", "name": "lookup_todo", "position": { "x": 340, "y": 360 }, "config": { "method": "GET", "url": "https://jsonplaceholder.typicode.com/todos/{{args.id}}", "query": {}, "headers": {}, "failOnError": true },
+            "tool": { "description": "Look up one to-do item by its number. Returns its title and whether it is completed.", "params": [{ "name": "id", "type": "number", "description": "The to-do number, 1 to 200", "required": true }] } }
+        ],
+        "edges": [
+          { "id": "e1", "source": "t1", "sourcePort": "out", "target": "g1" },
+          { "id": "e2", "source": "g1", "sourcePort": "tools", "target": "a1" }
+        ]
+      }
+    },
+    {
+      "id": "aiui.ai.research-team", "name": "Team of agents", "type": "solution", "icon": "users",
+      "description": "A lead agent that hands work to a researcher and a writer. Shows how agents use other agents as tools.",
+      "graph": {
+        "nodes": [
+          { "id": "t1", "type": "trigger.chat", "name": "chat", "position": { "x": 40, "y": 120 }, "config": { "sampleMessage": "Write a short briefing on why bees matter." } },
+          { "id": "g1", "type": "ai.agent", "name": "lead", "position": { "x": 340, "y": 120 }, "config": { "connection": "", "instructions": "You lead a small team. For any request: first ask the researcher for the key facts, then give those facts to the writer to produce the final text. Reply with the writer's text.", "prompt": "{{input.message}}", "mcpServers": [], "useHistory": true, "maxTurns": 12 } },
+          { "id": "g2", "type": "ai.agent", "name": "researcher", "position": { "x": 200, "y": 380 }, "config": { "connection": "", "instructions": "You are a careful researcher. List the most important facts about the topic as short bullet points. Say when you are unsure.", "prompt": "{{args.topic}}", "mcpServers": [], "useHistory": false, "maxTurns": 6 },
+            "tool": { "description": "Ask the researcher for the key facts about a topic.", "params": [{ "name": "topic", "type": "string", "description": "What to research", "required": true }] } },
+          { "id": "g3", "type": "ai.agent", "name": "writer", "position": { "x": 520, "y": 380 }, "config": { "connection": "", "instructions": "You are a clear, engaging writer. Turn the brief and facts you are given into a polished short text.", "prompt": "Brief: {{args.brief}}\n\nFacts:\n{{args.facts}}", "mcpServers": [], "useHistory": false, "maxTurns": 6 },
+            "tool": { "description": "Ask the writer to produce the final text from a brief and a list of facts.", "params": [{ "name": "brief", "type": "string", "description": "What to write and for whom", "required": true }, { "name": "facts", "type": "string", "description": "The facts to use", "required": true }] } }
+        ],
+        "edges": [
+          { "id": "e1", "source": "t1", "sourcePort": "out", "target": "g1" },
+          { "id": "e2", "source": "g1", "sourcePort": "tools", "target": "g2" },
+          { "id": "e3", "source": "g1", "sourcePort": "tools", "target": "g3" }
+        ]
+      }
+    }
+  ]
+}

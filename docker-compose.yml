@@ -1,0 +1,59 @@
+# AIUI in two containers: "api" (server + Python for Run) and "web" (nginx + the built app).
+#
+#   docker compose up -d --build      then open http://localhost:4420
+#   docker compose logs -f
+#   docker compose down               (add -v to also delete the data volume)
+#
+# Settings come from a ".env" file next to this one (see .env.example).
+#
+# Ports are published on 127.0.0.1 only, which suits a reverse proxy or Cloudflare Tunnel
+# running on the same machine. In local mode there is no sign-in, so never expose it;
+# to put the IDE online, set AIUI_MODE=web so everyone has to register and sign in.
+
+name: aiui
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: aiui-api:0.1.0
+    container_name: aiui-api
+    init: true
+    restart: unless-stopped
+    environment:
+      # local = one owner, signed in automatically.  web = everyone registers an account.
+      AIUI_MODE: ${AIUI_MODE:-local}
+      # Run inside the IDE executes generated code in this container.
+      # Empty = everyone in local mode, administrators only in web mode (changeable in Admin -> Settings).
+      AIUI_ALLOW_RUN: ${AIUI_ALLOW_RUN:-}
+      # Web mode: the administrator created on first start. Without a password, one is
+      # generated and written to /data/admin-password.txt.
+      AIUI_ADMIN_EMAIL: ${AIUI_ADMIN_EMAIL:-}
+      AIUI_ADMIN_PASSWORD: ${AIUI_ADMIN_PASSWORD:-}
+      AIUI_ADMIN_NAME: ${AIUI_ADMIN_NAME:-}
+      # Web origins allowed to call the API directly, comma separated.
+      AIUI_CORS_ORIGINS: ${AIUI_CORS_ORIGINS:-}
+    volumes:
+      - aiui-data:/data
+    ports:
+      - "${AIUI_BIND:-127.0.0.1}:${AIUI_API_PORT:-4421}:4317"
+    extra_hosts:
+      # Lets connections reach services on your machine, e.g. Ollama at http://host.docker.internal:11434/v1
+      - "host.docker.internal:host-gateway"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: aiui-web:0.1.0
+    container_name: aiui-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${AIUI_BIND:-127.0.0.1}:${AIUI_WEB_PORT:-4420}:80"
+
+volumes:
+  aiui-data:

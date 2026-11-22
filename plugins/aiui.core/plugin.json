@@ -1,0 +1,120 @@
+{
+  "id": "aiui.core",
+  "name": "Core",
+  "version": "1.0.0",
+  "description": "The essentials every project needs: ways to start a flow, conditions, loops, variables and logging.",
+  "author": "AIUI",
+  "icon": "blocks",
+  "category": "Essentials",
+  "listing": { "summary": "Triggers, conditions, loops and variables.", "priceCents": 0, "tags": ["core", "logic"], "builtin": true },
+  "nodes": [
+    {
+      "type": "trigger.manual", "label": "Run manually", "kind": "trigger", "category": "Start", "icon": "play",
+      "description": "Start the flow yourself, optionally with some test data.",
+      "inputs": [], "outputs": [{ "id": "out", "label": "Start" }],
+      "fields": [
+        { "key": "sampleInput", "label": "Test data", "type": "json", "default": {}, "rows": 5, "help": "Used when the flow is started without data. Read it later with the \"Insert data\" button." }
+      ],
+      "outputFields": [],
+      "codegen": { "csharp": { "className": "TriggerManualStep" } }
+    },
+    {
+      "type": "trigger.schedule", "label": "On a schedule", "kind": "trigger", "category": "Start", "icon": "clock",
+      "description": "Run the flow again and again at a fixed interval.",
+      "inputs": [], "outputs": [{ "id": "out", "label": "Start" }],
+      "fields": [
+        { "key": "every", "label": "Every", "type": "number", "default": 5, "required": true },
+        { "key": "unit", "label": "Unit", "type": "select", "default": "minutes", "options": [
+          { "value": "seconds", "label": "Seconds" }, { "value": "minutes", "label": "Minutes" },
+          { "value": "hours", "label": "Hours" }, { "value": "days", "label": "Days" } ] }
+      ],
+      "outputFields": [{ "key": "startedAt", "label": "Started at" }],
+      "codegen": { "csharp": { "className": "TriggerScheduleStep" } }
+    },
+    {
+      "type": "trigger.webhook", "label": "When a webhook is called", "kind": "trigger", "category": "Start", "icon": "webhook",
+      "description": "Another application starts the flow by calling a URL.",
+      "inputs": [], "outputs": [{ "id": "out", "label": "Start" }],
+      "fields": [
+        { "key": "path", "label": "Path", "type": "text", "default": "/webhook", "required": true },
+        { "key": "port", "label": "Port", "type": "number", "default": 8080, "group": "Advanced" },
+        { "key": "sampleInput", "label": "Test request", "type": "json", "default": { "body": {} }, "rows": 5, "help": "Used when you press Run in the IDE." }
+      ],
+      "outputFields": [{ "key": "body", "label": "Request body" }, { "key": "query", "label": "Query parameters" }, { "key": "headers", "label": "Headers" }],
+      "codegen": { "csharp": { "className": "TriggerWebhookStep" } }
+    },
+    {
+      "type": "trigger.chat", "label": "When a chat message arrives", "kind": "trigger", "category": "Start", "icon": "message-circle",
+      "description": "Start the flow each time someone sends a message. Use it with an AI Agent.",
+      "inputs": [], "outputs": [{ "id": "out", "label": "Start" }],
+      "fields": [
+        { "key": "sampleMessage", "label": "Test message", "type": "text", "default": "Hello! What can you do?", "help": "Used when the flow is started without a message." }
+      ],
+      "outputFields": [{ "key": "message", "label": "Message" }, { "key": "history", "label": "Earlier messages" }],
+      "codegen": { "csharp": { "className": "TriggerChatStep" } }
+    },
+    {
+      "type": "logic.if", "label": "Condition", "kind": "logic", "category": "Logic", "icon": "git-branch",
+      "description": "Go one way if something is true, another way if it is not.",
+      "inputs": [{ "id": "in", "label": "In" }],
+      "outputs": [{ "id": "true", "label": "If true" }, { "id": "false", "label": "If false" }],
+      "fields": [
+        { "key": "left", "label": "Value", "type": "text", "templated": true, "required": true, "placeholder": "Pick data with Insert data" },
+        { "key": "operator", "label": "Is", "type": "select", "default": "equals", "options": [
+          { "value": "equals", "label": "equal to" }, { "value": "not_equals", "label": "not equal to" },
+          { "value": "contains", "label": "containing" }, { "value": "not_contains", "label": "not containing" },
+          { "value": "starts_with", "label": "starting with" }, { "value": "ends_with", "label": "ending with" },
+          { "value": "greater", "label": "greater than" }, { "value": "greater_or_equal", "label": "greater than or equal to" },
+          { "value": "less", "label": "less than" }, { "value": "less_or_equal", "label": "less than or equal to" },
+          { "value": "is_empty", "label": "empty" }, { "value": "is_not_empty", "label": "not empty" },
+          { "value": "is_true", "label": "true" }, { "value": "is_false", "label": "false" } ] },
+        { "key": "right", "label": "Compare with", "type": "text", "templated": true,
+          "showIf": { "field": "operator", "equals": ["equals", "not_equals", "contains", "not_contains", "starts_with", "ends_with", "greater", "greater_or_equal", "less", "less_or_equal"] } }
+      ],
+      "outputFields": [{ "key": "result", "label": "Result (true/false)" }],
+      "codegen": { "csharp": { "className": "LogicIfStep" } }
+    },
+    {
+      "type": "logic.loop", "label": "For each", "kind": "logic", "category": "Logic", "icon": "repeat",
+      "description": "Repeat the next steps once for every item in a list.",
+      "inputs": [{ "id": "in", "label": "In" }],
+      "outputs": [{ "id": "item", "label": "For each item" }, { "id": "done", "label": "When finished" }],
+      "fields": [
+        { "key": "items", "label": "List to go through", "type": "text", "templated": true, "required": true, "placeholder": "Pick a list with Insert data" },
+        { "key": "maxItems", "label": "Stop after", "type": "number", "group": "Advanced", "help": "Leave empty to go through the whole list." }
+      ],
+      "outputFields": [{ "key": "count", "label": "Number of items" }, { "key": "results", "label": "Result of each round" }],
+      "codegen": { "csharp": { "className": "LogicLoopStep" } }
+    },
+    {
+      "type": "logic.set", "label": "Set variables", "kind": "logic", "category": "Logic", "icon": "variable",
+      "description": "Remember values under a name so later steps can use them.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "values", "label": "Variables", "type": "keyvalue", "templated": true, "default": {}, "help": "Read them later as vars.<name>." }
+      ],
+      "outputFields": [],
+      "codegen": { "csharp": { "className": "LogicSetStep" } }
+    },
+    {
+      "type": "logic.delay", "label": "Wait", "kind": "logic", "category": "Logic", "icon": "hourglass",
+      "description": "Pause before continuing.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [{ "key": "seconds", "label": "Seconds", "type": "number", "default": 1, "required": true }],
+      "outputFields": [{ "key": "waited", "label": "Seconds waited" }],
+      "codegen": { "csharp": { "className": "LogicDelayStep" } }
+    },
+    {
+      "type": "util.log", "label": "Log message", "kind": "action", "category": "Logic", "icon": "scroll-text",
+      "description": "Write a message to the run log. Handy for checking data while you build.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "message", "label": "Message", "type": "textarea", "templated": true, "required": true, "rows": 3 },
+        { "key": "level", "label": "Level", "type": "select", "default": "info", "group": "Advanced", "options": [
+          { "value": "info", "label": "Info" }, { "value": "warn", "label": "Warning" }, { "value": "error", "label": "Error" } ] }
+      ],
+      "outputFields": [{ "key": "message", "label": "Message" }],
+      "codegen": { "csharp": { "className": "UtilLogStep" } }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "aiui.data",
+  "name": "Data Tools",
+  "version": "1.0.0",
+  "description": "Small helpers for shaping data between steps: compose text from several values, read JSON text as data, and turn a list into a CSV table.",
+  "author": "AIUI",
+  "icon": "table-2",
+  "category": "Data",
+  "listing": { "summary": "Compose text, parse JSON, build CSV tables.", "priceCents": 0, "tags": ["data", "csv", "json", "text"] },
+  "nodes": [
+    {
+      "type": "data.compose", "label": "Compose text", "kind": "action", "category": "Data", "icon": "text-cursor-input",
+      "description": "Build a piece of text from fixed words and data from earlier steps.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [{ "key": "text", "label": "Text", "type": "textarea", "templated": true, "required": true, "rows": 6 }],
+      "outputFields": [{ "key": "text", "label": "Text" }, { "key": "length", "label": "Length" }],
+      "codegen": { "csharp": { "className": "DataComposeStep" } }
+    },
+    {
+      "type": "data.parse_json", "label": "Read JSON", "kind": "action", "category": "Data", "icon": "braces",
+      "description": "Turn JSON text into data that later steps can pick values from.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [{ "key": "text", "label": "JSON text", "type": "textarea", "templated": true, "required": true, "rows": 4 }],
+      "outputFields": [{ "key": "data", "label": "Data" }],
+      "codegen": { "csharp": { "className": "DataParseJsonStep" } }
+    },
+    {
+      "type": "data.to_csv", "label": "Build CSV table", "kind": "action", "category": "Data", "icon": "table-2",
+      "description": "Turn a list of records into CSV text, ready to save or email.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "rows", "label": "List of records", "type": "text", "templated": true, "required": true, "placeholder": "Pick a list with Insert data" },
+        { "key": "columns", "label": "Columns (empty = all)", "type": "list", "default": [] }
+      ],
+      "outputFields": [{ "key": "csv", "label": "CSV text" }, { "key": "rowCount", "label": "Number of rows" }],
+      "codegen": { "csharp": { "className": "DataToCsvStep" } }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "aiui.mcp",
+  "name": "MCP Tools",
+  "version": "1.0.0",
+  "description": "Call a specific tool on a Model Context Protocol server as a step in your flow — no agent required. Use it to automate applications that publish an MCP server.",
+  "author": "AIUI",
+  "icon": "plug",
+  "category": "Integrations",
+  "listing": { "summary": "Call MCP server tools directly from a flow.", "priceCents": 0, "tags": ["mcp", "tools", "integrations"] },
+  "nodes": [
+    {
+      "type": "mcp.call", "label": "Call MCP tool", "kind": "action", "category": "Integrations", "icon": "plug",
+      "description": "Run one tool on an MCP server and use its result.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "connection", "label": "MCP server", "type": "connection", "connectionType": "mcp", "required": true },
+        { "key": "tool", "label": "Tool name", "type": "text", "templated": true, "required": true, "placeholder": "search_issues" },
+        { "key": "arguments", "label": "Tool input (JSON)", "type": "json", "templated": true, "default": {}, "rows": 5 }
+      ],
+      "outputFields": [{ "key": "text", "label": "Result text" }, { "key": "data", "label": "Result data" }],
+      "codegen": { "csharp": { "className": "McpCallStep" } }
+    }
+  ]
+}

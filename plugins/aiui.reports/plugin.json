@@ -1,0 +1,27 @@
+{
+  "id": "aiui.reports",
+  "name": "Report Builder Pro",
+  "version": "1.0.0",
+  "description": "Turn the results of a flow into a finished report: title, summary, key figures and a data table, as Markdown or a styled HTML page ready to email, save or upload.",
+  "author": "AIUI",
+  "icon": "file-chart-column",
+  "category": "Files",
+  "listing": { "summary": "One-step Markdown and HTML reports with tables and key figures.", "priceCents": 900, "tags": ["reports", "html", "markdown"] },
+  "nodes": [
+    {
+      "type": "report.build", "label": "Build report", "kind": "action", "category": "Files", "icon": "file-chart-column",
+      "description": "Assemble a report from a title, a summary, key figures and a table.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Next" }],
+      "fields": [
+        { "key": "title", "label": "Title", "type": "text", "templated": true, "required": true },
+        { "key": "summary", "label": "Summary", "type": "textarea", "templated": true, "rows": 5 },
+        { "key": "figures", "label": "Key figures", "type": "keyvalue", "templated": true, "default": {}, "help": "Shown as highlighted numbers, e.g. Orders → 128." },
+        { "key": "rows", "label": "Table data (list of records)", "type": "text", "templated": true, "placeholder": "Pick a list with Insert data" },
+        { "key": "format", "label": "Format", "type": "select", "default": "html", "options": [{ "value": "html", "label": "HTML page" }, { "value": "markdown", "label": "Markdown" }] },
+        { "key": "savePath", "label": "Also save to file", "type": "text", "templated": true, "placeholder": "reports/weekly.html", "group": "Advanced" }
+      ],
+      "outputFields": [{ "key": "content", "label": "Report" }, { "key": "path", "label": "Saved file path" }, { "key": "format", "label": "Format" }],
+      "codegen": { "csharp": { "className": "ReportBuildStep" } }
+    }
+  ]
+}

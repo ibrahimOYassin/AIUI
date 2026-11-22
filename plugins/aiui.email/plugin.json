@@ -1,0 +1,47 @@
+{
+  "id": "aiui.email",
+  "name": "Email",
+  "version": "1.0.0",
+  "description": "Send email from your flows through any SMTP server — Gmail, Outlook, your company's mail server. Supports HTML, CC and file attachments.",
+  "author": "AIUI",
+  "icon": "mail",
+  "category": "Communication",
+  "listing": { "summary": "Send email through any SMTP server.", "priceCents": 0, "tags": ["email", "smtp", "notifications"] },
+  "connectionTypes": [
+    {
+      "type": "smtp", "label": "Mail server (SMTP)", "icon": "mail",
+      "description": "The outgoing mail server used to send email.",
+      "fields": [
+        { "key": "host", "label": "Server", "type": "text", "required": true, "placeholder": "smtp.example.com" },
+        { "key": "port", "label": "Port", "type": "number", "default": 587, "required": true },
+        { "key": "security", "label": "Encryption", "type": "select", "default": "starttls", "options": [
+          { "value": "starttls", "label": "STARTTLS (port 587)" }, { "value": "ssl", "label": "SSL/TLS (port 465)" }, { "value": "none", "label": "None" } ] },
+        { "key": "username", "label": "Username", "type": "text" },
+        { "key": "password", "label": "Password", "type": "secret" },
+        { "key": "from", "label": "From address", "type": "text", "required": true, "placeholder": "reports@example.com" }
+      ],
+      "presets": [
+        { "label": "Gmail", "values": { "host": "smtp.gmail.com", "port": 587, "security": "starttls" } },
+        { "label": "Outlook / Microsoft 365", "values": { "host": "smtp.office365.com", "port": 587, "security": "starttls" } }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "type": "email.send", "label": "Send email", "kind": "action", "category": "Communication", "icon": "mail",
+      "description": "Send an email, optionally with attachments.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Sent" }],
+      "fields": [
+        { "key": "connection", "label": "Mail server", "type": "connection", "connectionType": "smtp", "required": true },
+        { "key": "to", "label": "To", "type": "text", "templated": true, "required": true, "placeholder": "anna@example.com, ben@example.com" },
+        { "key": "subject", "label": "Subject", "type": "text", "templated": true, "required": true },
+        { "key": "body", "label": "Message", "type": "textarea", "templated": true, "required": true, "rows": 8 },
+        { "key": "html", "label": "The message is HTML", "type": "boolean", "default": false },
+        { "key": "cc", "label": "CC", "type": "text", "templated": true, "group": "Advanced" },
+        { "key": "attachments", "label": "Files to attach (paths)", "type": "list", "templated": true, "default": [], "group": "Advanced" }
+      ],
+      "outputFields": [{ "key": "sent", "label": "Sent (true/false)" }, { "key": "to", "label": "Recipients" }],
+      "codegen": { "csharp": { "className": "EmailSendStep" } }
+    }
+  ]
+}
