@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api';
 import { Button } from '../components/ui';
+import { PUBLIC_PAGES, usePageMeta } from '../lib/site';
 import { useApp } from '../stores/app';
 
 export function AuthPage({ mode }: { mode: 'signin' | 'register' }) {
@@ -15,6 +16,9 @@ export function AuthPage({ mode }: { mode: 'signin' | 'register' }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const register = mode === 'register';
+  usePageMeta(register ? PUBLIC_PAGES.register : PUBLIC_PAGES.signin);
+  // Keep where the visitor was heading when they switch between signing in and signing up.
+  const keep = location.state as { from?: string } | null;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -92,15 +96,18 @@ export function AuthPage({ mode }: { mode: 'signin' | 'register' }) {
         <p className="muted small auth-switch">
           {register ? (
             <>
-              Already have an account? <Link to="/signin">Sign in</Link>
+              Already have an account? <Link to="/signin" state={keep}>Sign in</Link>
             </>
           ) : allowRegistration ? (
             <>
-              New here? <Link to="/register">Create an account</Link>
+              New here? <Link to="/register" state={keep}>Create an account</Link>
             </>
           ) : (
             <>Need an account? Ask an administrator to create one for you.</>
           )}
+        </p>
+        <p className="muted small auth-switch">
+          <Link to="/">What is AIUI?</Link> · <Link to="/docs">Read the guide</Link>
         </p>
       </form>
     </div>

@@ -111,10 +111,6 @@ function language(value: unknown): Language {
 
 // ───────────────────────────── CRUD ─────────────────────────────
 
-projectsRouter.get('/catalog', (req, res) => {
-  res.json(buildCatalog(currentUser(req).id));
-});
-
 projectsRouter.get('/projects', (req, res) => {
   const rows = sql.all<ProjectRow>('SELECT * FROM projects WHERE owner_id = ? ORDER BY updated_at DESC', currentUser(req).id);
   res.json(rows.map(toSummary));

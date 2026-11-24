@@ -3,11 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AIUI</title>
+    <title>AIUI: build AI agents and workflows without code</title>
+    <meta name="description" content="AIUI is a no-code IDE in your browser for AI workflows, AI agents and teams of agents. Connect Claude, OpenAI or a local model, test it, then download a complete Python or C# project." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <meta name="theme-color" content="#5b4df5" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AIUI" />
+    <meta property="og:title" content="AIUI: build AI agents and workflows without code" />
+    <meta property="og:description" content="AIUI is a no-code IDE in your browser for AI workflows, AI agents and teams of agents. Connect Claude, OpenAI or a local model, test it, then download a complete Python or C# project." />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="AIUI, the no-code IDE for AI agents and workflows" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AIUI: build AI agents and workflows without code" />
+    <meta name="twitter:description" content="AIUI is a no-code IDE in your browser for AI workflows, AI agents and teams of agents. Connect Claude, OpenAI or a local model, test it, then download a complete Python or C# project." />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+    <link rel="alternate" type="text/plain" title="AIUI for AI assistants" href="/llms.txt" />
     <script>
       try { document.documentElement.dataset.theme = localStorage.getItem('aiui.theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+      // Signed-in visitors go straight to the app: hide the ready-made public page until it starts.
+      try { if (localStorage.getItem('aiui.token')) document.documentElement.dataset.session = '1'; } catch (e) {}
     </script>
+    <style>
+      html[data-session] [data-prerendered] { visibility: hidden; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

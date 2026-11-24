@@ -26,11 +26,14 @@ works, you download it as a complete **Python** or **C#** project that runs anyw
 
 ## Get started
 
-1. Go to https://aiui.softera.site and choose **Create an account**.
-2. Enter your name, email and a password of at least 8 characters.
-3. You land on **Home**, where your projects live.
+1. Go to https://aiui.softera.site. You can look around right away: browse the templates on
+   **Home**, the **Marketplace** and the **Docs**, and even start the **New project** wizard.
+2. When you create your first project, choose **Create free account** (or **Sign in**). Enter your
+   name, email and a password of at least 8 characters.
+3. You come straight back to your project and land in the editor. **Home** now lists your projects.
 
-You need an account to do anything; everything you build is private to you.
+An account is needed to create projects, add connections and install plugins; everything you
+build is private to you.
 
 ## Your first project
 

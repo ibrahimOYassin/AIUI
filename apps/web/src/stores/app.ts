@@ -67,6 +67,7 @@ interface AppState {
 }
 
 function initialTheme(): Theme {
+  if (typeof document === 'undefined') return 'light'; // rendering pages at build time
   const current = document.documentElement.dataset.theme;
   return current === 'dark' ? 'dark' : 'light';
 }
@@ -75,14 +76,27 @@ let toastSeq = 1;
 
 const EMPTY_CATALOG: Catalog = { nodeTypes: [], connectionTypes: [], templates: [], plugins: [] };
 
+/** The built-in steps and templates, written into the ready-made public pages so guests see them at once. */
+function embeddedCatalog(): Catalog {
+  if (typeof document === 'undefined') return EMPTY_CATALOG;
+  try {
+    const text = document.getElementById('aiui-catalog')?.textContent;
+    const catalog = text ? (JSON.parse(text) as Catalog) : null;
+    return catalog?.nodeTypes ? catalog : EMPTY_CATALOG;
+  } catch {
+    return EMPTY_CATALOG;
+  }
+}
+const INITIAL_CATALOG = embeddedCatalog();
+
 export const useApp = create<AppState>((set, get) => ({
   booting: true,
   bootError: null,
   config: null,
   user: null,
   impersonator: null,
-  catalog: EMPTY_CATALOG,
-  nodeTypes: new Map(),
+  catalog: INITIAL_CATALOG,
+  nodeTypes: new Map(INITIAL_CATALOG.nodeTypes.map((n) => [n.type, n])),
   connections: [],
   theme: initialTheme(),
   toasts: [],
@@ -117,7 +131,8 @@ export const useApp = create<AppState>((set, get) => ({
       // A saved admin token without an impersonated session is stale: forget it.
       if (!impersonator && impersonation.active()) impersonation.discard();
       set({ user, impersonator });
-      if (user) await Promise.all([get().loadCatalog(), get().loadConnections()]);
+      // Guests can look around too: they get the built-in steps and templates.
+      await Promise.all([get().loadCatalog(), user ? get().loadConnections() : null]);
       set({ booting: false });
     } catch (err) {
       set({ booting: false, bootError: errorMessage(err) });
@@ -134,6 +149,7 @@ export const useApp = create<AppState>((set, get) => ({
   signOut: () => {
     tokenStore.clearAll();
     set({ user: null, impersonator: null, catalog: EMPTY_CATALOG, nodeTypes: new Map(), connections: [] });
+    void get().loadCatalog();
   },
 
   setUser: (user) => set({ user }),

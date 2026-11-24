@@ -1,19 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Copy, FilePlus2, FolderOpen, MoreHorizontal, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Copy, FilePlus2, FolderOpen, LogIn, MoreHorizontal, Plus, Sparkles, Trash2, UserPlus } from 'lucide-react';
 import type { ProjectSummary, ProjectType, TemplateInfo } from '@aiui/shared';
 import { api, errorMessage } from '../api';
 import { Badge, Button, EmptyState, ErrorBox, Modal, PageHeader, Popover, Spinner } from '../components/ui';
 import { WelcomeTips } from '../components/WelcomeTips';
+import { AboutAiui, GuestHero } from '../components/AboutAiui';
 import { PROJECT_TYPES, timeAgo } from '../lib/format';
 import { Icon } from '../lib/icons';
+import { PUBLIC_PAGES, usePageMeta } from '../lib/site';
 import { useApp } from '../stores/app';
 
 const TYPE_TONE: Record<ProjectType, 'blue' | 'purple' | 'green'> = { workflow: 'blue', agent: 'purple', solution: 'green' };
 /** The template the welcome tips walk through. */
 const FIRST_AGENT_TEMPLATE = 'aiui.ai.support-agent';
 
+interface WizardStart {
+  template?: TemplateInfo;
+  type?: ProjectType;
+  /** Start blank (skip the template step). */
+  blank?: boolean;
+  name?: string;
+}
+
 export function HomePage() {
+  usePageMeta(PUBLIC_PAGES.home);
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const user = useApp((s) => s.user);
@@ -22,12 +33,16 @@ export function HomePage() {
   const askConfirm = useApp((s) => s.askConfirm);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wizard, setWizard] = useState<{ template?: TemplateInfo; type?: ProjectType } | null>(null);
+  const [wizard, setWizard] = useState<WizardStart | null>(null);
   const impersonating = useApp((s) => !!s.impersonator);
   // A new account sees the welcome tips on its first visit; "?tips=1" (from Docs) opens them again.
-  const [tipsOpen, setTipsOpen] = useState(() => !!user && user.tipsSeenAt === null && !impersonating);
+  // Not when the visitor arrives to create a project (e.g. right after signing up for it): that comes first.
+  const [tipsOpen, setTipsOpen] = useState(
+    () => !!user && user.tipsSeenAt === null && !impersonating && !params.get('new') && !params.get('template'),
+  );
 
   const load = useCallback(async () => {
+    if (!useApp.getState().user) return; // guests have no projects yet
     setError(null);
     try {
       setProjects(await api.projects());
@@ -38,17 +53,22 @@ export function HomePage() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, user]);
 
   useEffect(() => {
+    // "?new=1" and "?template=…" open the new-project wizard, e.g. after signing in to create a project.
+    const name = params.get('name') ?? undefined;
+    const type = params.get('type') as ProjectType | null;
     if (params.get('new')) {
-      setWizard({});
-      params.delete('new');
+      setWizard({ type: type && type in PROJECT_TYPES ? type : undefined, blank: params.get('blank') === '1', name });
+      for (const key of ['new', 'type', 'blank', 'name']) params.delete(key);
       setParams(params, { replace: true });
     } else if (params.get('template')) {
       const template = templates.find((t) => t.id === params.get('template'));
-      if (template) setWizard({ template });
+      if (!template && !templates.length) return; // the catalog is still loading
+      if (template) setWizard({ template, name });
       params.delete('template');
+      params.delete('name');
       setParams(params, { replace: true });
     } else if (params.get('tips')) {
       setTipsOpen(true);
@@ -96,6 +116,7 @@ export function HomePage() {
 
   return (
     <div className="page">
+      {user ? (
       <PageHeader
         title={user ? `Welcome, ${user.name.split(' ')[0]}` : 'Welcome'}
         subtitle="Build AI workflows, agents and multi-agent solutions — no code needed."
@@ -110,11 +131,14 @@ export function HomePage() {
           </>
         }
       />
+      ) : (
+        <GuestHero onNewProject={() => setWizard({})} onTips={() => setTipsOpen(true)} />
+      )}
 
-      <h2 className="section-title">Your projects</h2>
-      {error && <ErrorBox message={error} onRetry={() => void load()} />}
-      {!error && sorted === null && <Spinner label="Loading projects…" />}
-      {sorted && sorted.length === 0 && (
+      {user && <h2 className="section-title">Your projects</h2>}
+      {user && error && <ErrorBox message={error} onRetry={() => void load()} />}
+      {user && !error && sorted === null && <Spinner label="Loading projects…" />}
+      {user && sorted && sorted.length === 0 && (
         <div className="card">
           <EmptyState
             icon={<FilePlus2 size={24} />}
@@ -133,7 +157,7 @@ export function HomePage() {
           </EmptyState>
         </div>
       )}
-      {sorted && sorted.length > 0 && (
+      {user && sorted && sorted.length > 0 && (
         <div className="grid cards">
           {sorted.map((p) => (
             <article key={p.id} className="card project-card" onClick={() => navigate(`/projects/${p.id}`)}>
@@ -215,27 +239,25 @@ export function HomePage() {
         </>
       )}
 
-      {wizard && <NewProjectWizard initialTemplate={wizard.template} initialType={wizard.type} onClose={() => setWizard(null)} />}
+      {!user && <AboutAiui onNewProject={() => setWizard({})} />}
+
+      {wizard && <NewProjectWizard start={wizard} onClose={() => setWizard(null)} />}
       {tipsOpen && <WelcomeTips onClose={() => setTipsOpen(false)} onCreateAgent={createFirstAgent} />}
     </div>
   );
 }
 
-function NewProjectWizard({
-  initialTemplate,
-  initialType,
-  onClose,
-}: {
-  initialTemplate?: TemplateInfo;
-  initialType?: ProjectType;
-  onClose: () => void;
-}) {
+function NewProjectWizard({ start, onClose }: { start: WizardStart; onClose: () => void }) {
   const navigate = useNavigate();
   const templates = useApp((s) => s.catalog.templates);
   const toast = useApp((s) => s.toast);
+  const signedIn = useApp((s) => !!s.user);
+  const allowRegistration = useApp((s) => s.config?.allowRegistration ?? true);
+  const initialTemplate = start.template;
+  const initialType = start.type;
   const [type, setType] = useState<ProjectType | null>(initialTemplate?.type ?? initialType ?? null);
-  const [template, setTemplate] = useState<TemplateInfo | null | undefined>(initialTemplate);
-  const [name, setName] = useState(initialTemplate?.name ?? '');
+  const [template, setTemplate] = useState<TemplateInfo | null | undefined>(initialTemplate ?? (start.blank && initialType ? null : undefined));
+  const [name, setName] = useState(start.name ?? initialTemplate?.name ?? (start.blank && initialType ? `My ${PROJECT_TYPES[initialType].label.toLowerCase()}` : ''));
   const [description, setDescription] = useState(initialTemplate?.description ?? '');
   const [busy, setBusy] = useState(false);
 
@@ -253,8 +275,18 @@ function NewProjectWizard({
     else if (step === 2) setType(null);
   };
 
+  // A project belongs to an account: guests sign in (or sign up) here and come back to this step.
+  const signInToCreate = (page: '/signin' | '/register') => {
+    if (!type) return;
+    const back = new URLSearchParams(template ? { template: template.id } : { new: '1', type, blank: '1' });
+    if (name.trim()) back.set('name', name.trim());
+    onClose();
+    navigate(page, { state: { from: `/?${back}` } });
+  };
+
   const create = async () => {
     if (!type || !name.trim()) return;
+    if (!signedIn) return signInToCreate(allowRegistration ? '/register' : '/signin');
     setBusy(true);
     try {
       const project = await api.createProject({
@@ -286,10 +318,22 @@ function NewProjectWizard({
           <span className="muted small">Step {step} of 3</span>
           <span className="grow" />
           <Button onClick={onClose}>Cancel</Button>
-          {step === 3 && (
+          {step === 3 && signedIn && (
             <Button variant="primary" onClick={() => void create()} busy={busy} disabled={!name.trim()}>
               Create and open
             </Button>
+          )}
+          {step === 3 && !signedIn && (
+            <>
+              <Button icon={<LogIn size={15} />} onClick={() => signInToCreate('/signin')} disabled={!name.trim()}>
+                Sign in to create
+              </Button>
+              {allowRegistration && (
+                <Button variant="primary" icon={<UserPlus size={15} />} onClick={() => signInToCreate('/register')} disabled={!name.trim()}>
+                  Create free account
+                </Button>
+              )}
+            </>
           )}
         </>
       }
@@ -360,6 +404,15 @@ function NewProjectWizard({
             </div>
             <textarea rows={3} value={description} placeholder="What is this project for? (optional)" onChange={(e) => setDescription(e.target.value)} />
           </div>
+          {!signedIn && (
+            <div className="hint-box hint-signin">
+              <LogIn size={15} />
+              <span>
+                Projects are saved to your account. Sign in or create a free account, and you come straight back here to create{' '}
+                <strong>{name.trim() || 'your project'}</strong>.
+              </span>
+            </div>
+          )}
           <div className="hint-box">
             {template ? (
               <>

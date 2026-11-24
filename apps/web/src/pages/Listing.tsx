@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Download } from 'lucide-react';
 import type { ListingDetail } from '@aiui/shared';
@@ -7,6 +7,7 @@ import { api, errorMessage } from '../api';
 import { Badge, Button, ErrorBox, Spinner, Stars } from '../components/ui';
 import { compact, shortDate } from '../lib/format';
 import { Icon, KIND_LABEL } from '../lib/icons';
+import { usePageMeta } from '../lib/site';
 import { useApp } from '../stores/app';
 import { CheckoutDialog, ListingAction, useInstallActions } from './Marketplace';
 
@@ -41,6 +42,17 @@ export function ListingPage() {
   }, [load]);
 
   const actions = useInstallActions(() => void load());
+
+  const meta = useMemo(
+    () => ({
+      path: `/marketplace/plugin/${encodeURIComponent(id)}`,
+      title: listing ? `${listing.name}: AIUI Marketplace plugin` : 'AIUI Marketplace',
+      description: listing ? listing.summary || `${listing.name}, a plugin for AIUI.` : 'A plugin for AIUI.',
+      index: !!listing && listing.status === 'published',
+    }),
+    [id, listing],
+  );
+  usePageMeta(meta);
 
   const postReview = async () => {
     if (!listing || rating < 1) return;

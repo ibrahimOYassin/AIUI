@@ -50,6 +50,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        AIUI_SITE_URL: ${AIUI_SITE_URL:-https://aiui.softera.site}
     image: ${AIUI_IMAGE_PREFIX:-}aiui-web:${AIUI_TAG:-0.1.0}
     container_name: aiui-web
     restart: unless-stopped

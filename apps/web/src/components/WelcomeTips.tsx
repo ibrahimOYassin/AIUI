@@ -113,7 +113,7 @@ export function WelcomeTips({ onClose, onCreateAgent }: { onClose: () => void; o
   const finish = (then?: () => void) => {
     onClose();
     then?.();
-    if (impersonating) return;
+    if (impersonating || !useApp.getState().user) return; // guests have no account to remember it in
     void api
       .updateMe({ tipsSeen: true })
       .then((u) => useApp.getState().setUser(u))

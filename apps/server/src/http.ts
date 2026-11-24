@@ -76,6 +76,12 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   next();
 }
 
+/** Pages anyone may read: the user is known when a token is sent, and guests get through without one. */
+export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
+  if (req.headers.authorization) requireAuth(req, res, next);
+  else next();
+}
+
 export function currentUser(req: Request): User {
   if (!req.user) throw new HttpError(401, 'Please sign in.');
   return req.user;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { BadgeCheck, Download, Lock, Puzzle, Search, ShieldCheck, Store } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { BadgeCheck, Download, LogIn, Lock, Puzzle, Search, ShieldCheck, Store } from 'lucide-react';
 import type { InstalledPlugin, Listing, MarketQuery } from '@aiui/shared';
 import { formatPrice } from '@aiui/shared';
 import { api, errorMessage } from '../api';
@@ -8,6 +8,7 @@ import { Toggle } from '../components/FieldForm';
 import { Badge, Button, EmptyState, ErrorBox, Modal, PageHeader, Spinner, Stars, Tabs } from '../components/ui';
 import { compact } from '../lib/format';
 import { Icon } from '../lib/icons';
+import { PUBLIC_PAGES, usePageMeta } from '../lib/site';
 import { useApp } from '../stores/app';
 
 /** Demo checkout: records a purchase, takes no payment. */
@@ -126,6 +127,8 @@ export function ListingAction({
   onUninstall?: () => void;
   size?: 'sm' | 'md';
 }) {
+  const signedIn = useApp((s) => !!s.user);
+  const location = useLocation();
   if (listing.builtin) {
     return (
       <Badge tone="neutral">
@@ -140,6 +143,20 @@ export function ListingAction({
       </Button>
     ) : (
       <Badge tone="green">Installed</Badge>
+    );
+  }
+  // Installing adds the plugin to an account: guests sign in first and come back to this page.
+  if (!signedIn) {
+    return (
+      <Link
+        to="/signin"
+        state={{ from: location.pathname }}
+        className={`btn btn-primary btn-${size}`}
+        onClick={(e) => e.stopPropagation()}
+        title="Sign in or create a free account to add this plugin"
+      >
+        <LogIn size={14} /> {listing.priceCents === 0 ? 'Get' : `Buy ${formatPrice(listing.priceCents)}`}
+      </Link>
     );
   }
   if (listing.owned || listing.priceCents === 0) {
@@ -157,15 +174,14 @@ export function ListingAction({
 }
 
 export function MarketplacePage({ tab }: { tab: 'browse' | 'installed' }) {
+  usePageMeta(PUBLIC_PAGES.marketplace);
   const navigate = useNavigate();
+  const signedIn = useApp((s) => !!s.user);
   return (
     <div className="page">
       <PageHeader title="Marketplace" subtitle="Add new steps, connections and templates to the IDE. Free and paid plugins from AIUI and independent developers." />
       <Tabs
-        tabs={[
-          { id: 'browse', label: 'Browse' },
-          { id: 'installed', label: 'My plugins' },
-        ]}
+        tabs={[{ id: 'browse', label: 'Browse' }, ...(signedIn ? [{ id: 'installed', label: 'My plugins' }] : [])]}
         value={tab}
         onChange={(id) => navigate(id === 'browse' ? '/marketplace' : '/marketplace/installed')}
       />

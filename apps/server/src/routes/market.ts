@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Router } from 'express';
+import { type Request, type Response, Router } from 'express';
 import type { Listing, ListingDetail, MarketQuery, PluginManifest, Review } from '@aiui/shared';
 import { config } from '../config.ts';
 import { now, sql } from '../db.ts';
@@ -68,8 +68,9 @@ function visibleRow(id: string, userId: string): PluginRow {
   return row;
 }
 
-marketRouter.get('/market/plugins', (req, res) => {
-  const user = currentUser(req);
+/** Browsing the Marketplace needs no account (see routes/public.ts); a guest owns only free plugins. */
+export function listPlugins(req: Request, res: Response): void {
+  const user = { id: req.user?.id ?? '' };
   const query = req.query as MarketQuery;
   const search = (query.q ?? '').toString().trim().toLowerCase();
   let listings = sql.all<PluginRow>("SELECT * FROM plugins WHERE status = 'published'").map((row) => toListing(row, user.id));
@@ -86,11 +87,11 @@ marketRouter.get('/market/plugins', (req, res) => {
     rating: (a, b) => b.rating - a.rating || b.ratingCount - a.ratingCount,
   };
   res.json(listings.sort(sorters[query.sort ?? 'popular'] ?? sorters.popular));
-});
+}
 
-marketRouter.get('/market/plugins/:id', (req, res) => {
-  const user = currentUser(req);
-  const row = visibleRow(req.params.id, user.id);
+export function pluginDetail(req: Request, res: Response): void {
+  const user = { id: req.user?.id ?? '' };
+  const row = visibleRow(String(req.params.id), user.id);
   const latest = latestVersion(row.id);
   if (!latest) throw new HttpError(404, 'Plugin not found.');
   const { manifest } = latest;
@@ -111,7 +112,7 @@ marketRouter.get('/market/plugins/:id', (req, res) => {
     reviews: reviews.map((r): Review => ({ userName: r.name, rating: r.rating, comment: r.comment, createdAt: r.created_at, mine: r.user_id === user.id })),
   };
   res.json(detail);
-});
+}
 
 /**
  * Buying a paid plugin. Payment is simulated in this MVP: the purchase is recorded and
@@ -119,7 +120,7 @@ marketRouter.get('/market/plugins/:id', (req, res) => {
  */
 marketRouter.post('/market/plugins/:id/purchase', (req, res) => {
   const user = currentUser(req);
-  const row = visibleRow(req.params.id, user.id);
+  const row = visibleRow(String(req.params.id), user.id);
   if (row.status !== 'published') throw new HttpError(400, 'This plugin is not published yet.');
   if (!isOwned(row, user.id)) {
     sql.run(
@@ -133,7 +134,7 @@ marketRouter.post('/market/plugins/:id/purchase', (req, res) => {
 
 marketRouter.post('/market/plugins/:id/install', (req, res) => {
   const user = currentUser(req);
-  const row = visibleRow(req.params.id, user.id);
+  const row = visibleRow(String(req.params.id), user.id);
   if (row.builtin === 1) return void res.json({ ok: true });
   if (!isOwned(row, user.id)) throw new HttpError(402, 'Buy this plugin before installing it.');
   const latest = latestVersion(row.id);
@@ -164,7 +165,7 @@ marketRouter.delete('/market/plugins/:id/install', (req, res) => {
 
 marketRouter.post('/market/plugins/:id/reviews', (req, res) => {
   const user = currentUser(req);
-  const row = visibleRow(req.params.id, user.id);
+  const row = visibleRow(String(req.params.id), user.id);
   const rating = Number(req.body?.rating);
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new HttpError(400, 'Choose a rating from 1 to 5.');
   if (row.developer_id === user.id) throw new HttpError(400, 'You cannot review your own plugin.');

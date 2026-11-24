@@ -5,6 +5,7 @@ import type { NodeKind, NodeTypeInfo, ProjectType } from '@aiui/shared';
 import { Button } from '../components/ui';
 import { PROJECT_TYPES } from '../lib/format';
 import { Icon, KIND_LABEL } from '../lib/icons';
+import { PUBLIC_PAGES, usePageMeta } from '../lib/site';
 import { useApp } from '../stores/app';
 
 const SECTIONS = [
@@ -24,7 +25,9 @@ const SECTIONS = [
 ] as const;
 
 export function DocsPage() {
+  usePageMeta(PUBLIC_PAGES.docs);
   const location = useLocation();
+
   const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
   const [active, setActive] = useState<string>(SECTIONS[0].id);
 
@@ -545,6 +548,7 @@ const EXAMPLES: Example[] = [
 function Examples() {
   const navigate = useNavigate();
   const templates = useApp((s) => s.catalog.templates);
+  const open = (template: string) => navigate(`/?template=${encodeURIComponent(template)}`);
   return (
     <Section id="examples" title="Examples you can open in one click" lead="Each example is a template. Open it, look around, run it, then change it. Your copy is yours to edit.">
       <div className="docs-examples">
@@ -562,7 +566,7 @@ function Examples() {
                 </div>
                 <span className="grow" />
                 {available && (
-                  <Button onClick={() => navigate(`/?template=${encodeURIComponent(ex.template)}`)}>
+                  <Button onClick={() => open(ex.template)}>
                     Use this template <ArrowRight size={14} />
                   </Button>
                 )}
@@ -717,6 +721,7 @@ function Messaging() {
 
 function StepLibrary() {
   const nodeTypes = useApp((s) => s.catalog.nodeTypes);
+  const signedIn = useApp((s) => !!s.user);
   const groups = useMemo(() => {
     const map = new Map<string, NodeTypeInfo[]>();
     for (const n of nodeTypes) {
@@ -728,7 +733,7 @@ function StepLibrary() {
   }, [nodeTypes]);
   return (
     <Section id="steps" title="Step library" lead="Every step you can add right now, grouped like in the editor. Plugins from the Marketplace add more.">
-      {groups.length === 0 && <p className="muted">No steps are installed.</p>}
+      {groups.length === 0 && signedIn && <p className="muted">No steps are installed.</p>}
       {groups.map(([category, list]) => (
         <div key={category} className="docs-step-group">
           <h3>{category}</h3>

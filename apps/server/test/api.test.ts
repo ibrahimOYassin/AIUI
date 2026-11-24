@@ -122,6 +122,31 @@ test('catalog: core plugins are present, marketplace plugins are not until insta
   assert.ok(data.templates.length >= 4);
 });
 
+test('guests: look around without an account, sign in to create or install', async () => {
+  // The step library, templates and Marketplace are open to everyone.
+  const catalog = await api<Catalog>('GET', '/catalog');
+  assert.equal(catalog.status, 200);
+  assert.ok(catalog.data.nodeTypes.some((n) => n.type === 'ai.agent'));
+  assert.ok(catalog.data.templates.length >= 4);
+  assert.ok(!JSON.stringify(catalog.data).includes('def run('), 'step source must not reach the browser');
+  const listings = await api<Listing[]>('GET', '/market/plugins');
+  assert.equal(listings.status, 200);
+  const free = listings.data.find((l) => l.id === 'aiui.email')!;
+  assert.ok(free && !free.installed && free.owned, 'a guest owns free plugins but has nothing installed');
+  const detail = await api<ListingDetail>('GET', '/market/plugins/aiui.email');
+  assert.equal(detail.status, 200);
+  assert.ok(detail.data.reviews.every((r) => !r.mine));
+
+  // Anything that belongs to an account still needs one.
+  assert.equal((await api('GET', '/projects')).status, 401);
+  assert.equal((await api('POST', '/projects', undefined, { name: 'x', type: 'workflow' })).status, 401);
+  assert.equal((await api('GET', '/connections')).status, 401);
+  assert.equal((await api('POST', '/market/plugins/aiui.email/install')).status, 401);
+  assert.equal((await api('GET', '/market/installed')).status, 401);
+  // A bad token is refused rather than treated as a guest.
+  assert.equal((await api('GET', '/catalog', 'forged.token')).status, 401);
+});
+
 let projectId: string;
 
 test('projects: create from template, update, isolation between users', async () => {

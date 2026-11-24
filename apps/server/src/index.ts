@@ -12,6 +12,7 @@ import { connectionsRouter } from './routes/connections.ts';
 import { devRouter } from './routes/dev.ts';
 import { marketRouter } from './routes/market.ts';
 import { projectsRouter } from './routes/projects.ts';
+import { publicRouter } from './routes/public.ts';
 
 seedPlugins();
 if (config.mode === 'local') ensureLocalUser();
@@ -48,6 +49,7 @@ api.get('/config', (_req, res) => {
   } satisfies AppConfig);
 });
 api.use(authRouter);
+api.use(publicRouter);
 api.use(projectsRouter);
 api.use(connectionsRouter);
 api.use(marketRouter);
@@ -59,8 +61,14 @@ app.get('/', (_req, res, next) => (fs.existsSync(path.join(config.webDist, 'inde
 
 // The built web app, when present (npm run build). In development Vite serves it instead.
 if (fs.existsSync(path.join(config.webDist, 'index.html'))) {
-  app.use(express.static(config.webDist));
-  app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(path.join(config.webDist, 'index.html')));
+  app.use(express.static(config.webDist, { redirect: false }));
+  // Ready-made public pages (/docs, /signin, /register) first, then the app for every other address.
+  const appPage = fs.existsSync(path.join(config.webDist, 'app.html')) ? 'app.html' : 'index.html';
+  app.get(/^(?!\/api\/).*/, (req, res) => {
+    const page = path.join(config.webDist, req.path.replace(/\/+$/, ''), 'index.html');
+    const ready = page.startsWith(config.webDist + path.sep) && fs.existsSync(page);
+    res.sendFile(ready ? page : path.join(config.webDist, appPage));
+  });
 }
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

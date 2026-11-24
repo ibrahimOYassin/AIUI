@@ -59,6 +59,7 @@ and `aiui-web` (nginx serving the app and forwarding `/api`). Your data is kept 
 | `AIUI_ADMIN_EMAIL`, `AIUI_ADMIN_PASSWORD` | | First administrator in web mode |
 | `AIUI_CORS_ORIGINS` | | Origins allowed to call the API domain from a browser |
 | `AIUI_BIND` | `127.0.0.1` | Address the ports are published on |
+| `AIUI_SITE_URL` | `https://aiui.softera.site` | Your public address, used for search engines: canonical links, `sitemap.xml`, `robots.txt`, `llms.txt` and social cards. Set it before `docker compose build` |
 
 Both ports are published on `127.0.0.1` only. Settings are read from a `.env` file next to
 `docker-compose.yml`; copy `.env.example` to start.

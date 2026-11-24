@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Code2, Home, Moon, Plug, Search, ShieldCheck, Store, Sun, UserRound } from 'lucide-react';
+import { BookOpen, Code2, Home, LogIn, Moon, Plug, Search, ShieldCheck, Store, Sun, UserRound } from 'lucide-react';
 import { Icon } from '../lib/icons';
 import { isTrigger } from '../lib/graph';
+import { isGuestPath } from '../lib/site';
 import { useApp } from '../stores/app';
 import { useEditor } from '../stores/editor';
 
 const NAV = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/connections', label: 'Connections', icon: Plug, end: false },
-  { to: '/marketplace', label: 'Marketplace', icon: Store, end: false },
-  { to: '/developer', label: 'Developer', icon: Code2, end: false },
-  { to: '/docs', label: 'Docs', icon: BookOpen, end: false },
+  { to: '/', label: 'Home', icon: Home, end: true, guest: true },
+  { to: '/connections', label: 'Connections', icon: Plug, end: false, guest: false },
+  { to: '/marketplace', label: 'Marketplace', icon: Store, end: false, guest: true },
+  { to: '/developer', label: 'Developer', icon: Code2, end: false, guest: false },
+  { to: '/docs', label: 'Docs', icon: BookOpen, end: false, guest: true },
 ];
+
+/** What a guest can do from the command palette; the rest needs an account. */
+const GUEST_COMMANDS = new Set(['new', 'home', 'market', 'docs', 'tips', 'theme']);
 
 export function Shell() {
   const theme = useApp((s) => s.theme);
@@ -22,6 +26,12 @@ export function Shell() {
   const paletteOpen = useApp((s) => s.paletteOpen);
   const user = useApp((s) => s.user);
   const isAdmin = !!user?.roles.includes('admin');
+  const location = useLocation();
+
+  // Pages that belong to an account get a plain tab title (the pages guests can open set their own).
+  useEffect(() => {
+    if (!isGuestPath(location.pathname)) document.title = 'AIUI';
+  }, [location.pathname]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,7 +50,7 @@ export function Shell() {
         <NavLink to="/" className="rail-logo" title="AIUI">
           <img src="/logo.svg" alt="AIUI" />
         </NavLink>
-        {NAV.map((item) => (
+        {NAV.filter((item) => user || item.guest).map((item) => (
           <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `rail-item ${isActive ? 'active' : ''}`} title={item.label}>
             <item.icon size={19} />
             <span>{item.label}</span>
@@ -66,10 +76,17 @@ export function Shell() {
           {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
           <span>Theme</span>
         </button>
-        <NavLink to="/account" className={({ isActive }) => `rail-item ${isActive ? 'active' : ''}`} title={user?.name ?? 'Account'}>
-          <UserRound size={19} />
-          <span>Account</span>
-        </NavLink>
+        {user ? (
+          <NavLink to="/account" className={({ isActive }) => `rail-item ${isActive ? 'active' : ''}`} title={user.name}>
+            <UserRound size={19} />
+            <span>Account</span>
+          </NavLink>
+        ) : (
+          <NavLink to="/signin" state={{ from: location.pathname + location.search }} className="rail-item rail-signin" title="Sign in or create a free account">
+            <LogIn size={19} />
+            <span>Sign in</span>
+          </NavLink>
+        )}
       </nav>
       <main className="shell-main">
         <Outlet />
@@ -94,6 +111,7 @@ function CommandPalette() {
   const theme = useApp((s) => s.theme);
   const nodeTypes = useApp((s) => s.catalog.nodeTypes);
   const isAdmin = useApp((s) => !!s.user?.roles.includes('admin'));
+  const signedIn = useApp((s) => !!s.user);
   const project = useEditor((s) => s.project);
   const [q, setQ] = useState('');
   const [index, setIndex] = useState(0);
@@ -158,8 +176,8 @@ function CommandPalette() {
         });
       }
     }
-    return list;
-  }, [navigate, theme, nodeTypes, inIde, isAdmin]);
+    return signedIn ? list : list.filter((c) => GUEST_COMMANDS.has(c.id));
+  }, [navigate, theme, nodeTypes, inIde, isAdmin, signedIn]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

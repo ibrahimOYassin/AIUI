@@ -11,6 +11,12 @@ COPY apps/web/package.json apps/web/
 RUN npm ci --workspace @aiui/web
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+# The public pages list the built-in steps and offer the README to AI assistants (llms-full.txt).
+COPY plugins plugins
+COPY README.md README.md
+# The public address used in canonical links, the sitemap and social cards.
+ARG AIUI_SITE_URL=https://aiui.softera.site
+ENV VITE_SITE_URL=$AIUI_SITE_URL
 RUN npm run build --workspace @aiui/web
 
 FROM nginx:stable-alpine
