@@ -48,6 +48,9 @@ export function Spinner({ label }: { label?: string }) {
   );
 }
 
+/** Open dialogs, oldest first. */
+const openModals: symbol[] = [];
+
 export function Modal({
   title,
   onClose,
@@ -61,16 +64,24 @@ export function Modal({
   footer?: ReactNode;
   width?: number;
 }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
+    // Only the dialog on top answers Escape, so one press never closes a dialog and the one beneath it.
+    const id = Symbol('modal');
+    openModals.push(id);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && openModals.at(-1) === id) {
         e.stopPropagation();
-        onClose();
+        closeRef.current();
       }
     };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      openModals.splice(openModals.indexOf(id), 1);
+    };
+  }, []);
   return createPortal(
     <div
       className="modal-backdrop"

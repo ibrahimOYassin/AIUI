@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Copy, FilePlus2, FolderOpen, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Copy, FilePlus2, FolderOpen, MoreHorizontal, Plus, Sparkles, Trash2 } from 'lucide-react';
 import type { ProjectSummary, ProjectType, TemplateInfo } from '@aiui/shared';
 import { api, errorMessage } from '../api';
 import { Badge, Button, EmptyState, ErrorBox, Modal, PageHeader, Popover, Spinner } from '../components/ui';
+import { WelcomeTips } from '../components/WelcomeTips';
 import { PROJECT_TYPES, timeAgo } from '../lib/format';
 import { Icon } from '../lib/icons';
 import { useApp } from '../stores/app';
 
 const TYPE_TONE: Record<ProjectType, 'blue' | 'purple' | 'green'> = { workflow: 'blue', agent: 'purple', solution: 'green' };
+/** The template the welcome tips walk through. */
+const FIRST_AGENT_TEMPLATE = 'aiui.ai.support-agent';
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -19,7 +22,10 @@ export function HomePage() {
   const askConfirm = useApp((s) => s.askConfirm);
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [wizard, setWizard] = useState<{ template?: TemplateInfo } | null>(null);
+  const [wizard, setWizard] = useState<{ template?: TemplateInfo; type?: ProjectType } | null>(null);
+  const impersonating = useApp((s) => !!s.impersonator);
+  // A new account sees the welcome tips on its first visit; "?tips=1" (from Docs) opens them again.
+  const [tipsOpen, setTipsOpen] = useState(() => !!user && user.tipsSeenAt === null && !impersonating);
 
   const load = useCallback(async () => {
     setError(null);
@@ -39,8 +45,22 @@ export function HomePage() {
       setWizard({});
       params.delete('new');
       setParams(params, { replace: true });
+    } else if (params.get('template')) {
+      const template = templates.find((t) => t.id === params.get('template'));
+      if (template) setWizard({ template });
+      params.delete('template');
+      setParams(params, { replace: true });
+    } else if (params.get('tips')) {
+      setTipsOpen(true);
+      params.delete('tips');
+      setParams(params, { replace: true });
     }
-  }, [params, setParams]);
+  }, [params, setParams, templates]);
+
+  const createFirstAgent = () => {
+    const template = templates.find((t) => t.id === FIRST_AGENT_TEMPLATE) ?? templates.find((t) => t.type === 'agent');
+    setWizard(template ? { template } : { type: 'agent' });
+  };
 
   const duplicate = async (p: ProjectSummary) => {
     try {
@@ -80,9 +100,14 @@ export function HomePage() {
         title={user ? `Welcome, ${user.name.split(' ')[0]}` : 'Welcome'}
         subtitle="Build AI workflows, agents and multi-agent solutions — no code needed."
         actions={
-          <Button variant="primary" icon={<Plus size={16} />} onClick={() => setWizard({})}>
-            New project
-          </Button>
+          <>
+            <Button icon={<Sparkles size={16} />} onClick={() => setTipsOpen(true)} title="How to build and run your first AI Agent">
+              Tips
+            </Button>
+            <Button variant="primary" icon={<Plus size={16} />} onClick={() => setWizard({})}>
+              New project
+            </Button>
+          </>
         }
       />
 
@@ -101,6 +126,10 @@ export function HomePage() {
             }
           >
             Pick what you want to build, start from a ready-made template or a blank page, and add steps one at a time.
+            <br />
+            <button type="button" className="link-btn" onClick={() => navigate('/docs')}>
+              <BookOpen size={14} /> New here? Read the getting-started guide
+            </button>
           </EmptyState>
         </div>
       )}
@@ -186,16 +215,25 @@ export function HomePage() {
         </>
       )}
 
-      {wizard && <NewProjectWizard initialTemplate={wizard.template} onClose={() => setWizard(null)} />}
+      {wizard && <NewProjectWizard initialTemplate={wizard.template} initialType={wizard.type} onClose={() => setWizard(null)} />}
+      {tipsOpen && <WelcomeTips onClose={() => setTipsOpen(false)} onCreateAgent={createFirstAgent} />}
     </div>
   );
 }
 
-function NewProjectWizard({ initialTemplate, onClose }: { initialTemplate?: TemplateInfo; onClose: () => void }) {
+function NewProjectWizard({
+  initialTemplate,
+  initialType,
+  onClose,
+}: {
+  initialTemplate?: TemplateInfo;
+  initialType?: ProjectType;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
   const templates = useApp((s) => s.catalog.templates);
   const toast = useApp((s) => s.toast);
-  const [type, setType] = useState<ProjectType | null>(initialTemplate?.type ?? null);
+  const [type, setType] = useState<ProjectType | null>(initialTemplate?.type ?? initialType ?? null);
   const [template, setTemplate] = useState<TemplateInfo | null | undefined>(initialTemplate);
   const [name, setName] = useState(initialTemplate?.name ?? '');
   const [description, setDescription] = useState(initialTemplate?.description ?? '');

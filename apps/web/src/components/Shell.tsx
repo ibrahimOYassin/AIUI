@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Code2, Home, Moon, Plug, Search, ShieldCheck, Store, Sun, UserRound } from 'lucide-react';
+import { BookOpen, Code2, Home, Moon, Plug, Search, ShieldCheck, Store, Sun, UserRound } from 'lucide-react';
 import { Icon } from '../lib/icons';
 import { isTrigger } from '../lib/graph';
 import { useApp } from '../stores/app';
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/connections', label: 'Connections', icon: Plug, end: false },
   { to: '/marketplace', label: 'Marketplace', icon: Store, end: false },
   { to: '/developer', label: 'Developer', icon: Code2, end: false },
+  { to: '/docs', label: 'Docs', icon: BookOpen, end: false },
 ];
 
 export function Shell() {
@@ -109,6 +110,8 @@ function CommandPalette() {
       { id: 'plugins', label: 'Go to My plugins', hint: 'Navigate', icon: 'puzzle', run: go('/marketplace/installed') },
       { id: 'dev', label: 'Go to Developer portal', hint: 'Navigate', icon: 'code-2', run: go('/developer') },
       { id: 'account', label: 'Go to Account', hint: 'Navigate', icon: 'user-round', run: go('/account') },
+      { id: 'docs', label: 'Open the documentation', hint: 'Help', icon: 'book-open', run: go('/docs') },
+      { id: 'tips', label: 'Show the getting-started tips', hint: 'Help', icon: 'sparkles', run: go('/?tips=1') },
       {
         id: 'theme',
         label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',

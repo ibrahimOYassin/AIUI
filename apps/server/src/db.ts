@@ -100,15 +100,20 @@ db.exec(`
 
 // ── Upgrades for databases created by an earlier version ─────────────────────
 
-function addColumn(table: string, column: string, definition: string): void {
+/** Adds the column when it is missing; returns true when it was just added. */
+function addColumn(table: string, column: string, definition: string): boolean {
   const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  if (columns.some((c) => c.name === column)) return false;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  return true;
 }
 
 addColumn('users', 'status', "TEXT NOT NULL DEFAULT 'active'");
 addColumn('users', 'last_seen_at', 'TEXT');
 // Tokens issued before this moment (ms since epoch) are no longer accepted.
 addColumn('users', 'tokens_valid_after', 'INTEGER NOT NULL DEFAULT 0');
+// When the welcome tips were closed. People who already had an account count as having seen them.
+if (addColumn('users', 'tips_seen_at', 'TEXT')) db.exec('UPDATE users SET tips_seen_at = created_at');
 
 db.exec(`
   -- What people do on the platform; feeds the admin reports and the activity log.

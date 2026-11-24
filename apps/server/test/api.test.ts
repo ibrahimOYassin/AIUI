@@ -103,6 +103,16 @@ test('accounts: register, sign in, and no auto sign-in in web mode', async () =>
   assert.equal((await api('GET', '/auth/me', 'forged.token')).status, 401);
 });
 
+test('accounts: a new account sees the welcome tips until it closes them', async () => {
+  assert.equal(alice.user.tipsSeenAt, null, 'new accounts have not seen the tips');
+  const closed = await api<{ user: AuthResponse['user'] }>('PATCH', '/auth/me', alice.token, { tipsSeen: true });
+  assert.equal(closed.status, 200);
+  assert.ok(closed.data.user.tipsSeenAt, 'closing the tips is remembered');
+  assert.ok((await api<MeResponse>('GET', '/auth/me', alice.token)).data.user.tipsSeenAt, 'and still remembered next time');
+  const reopened = await api<{ user: AuthResponse['user'] }>('PATCH', '/auth/me', alice.token, { tipsSeen: false });
+  assert.equal(reopened.data.user.tipsSeenAt, null);
+});
+
 test('catalog: core plugins are present, marketplace plugins are not until installed', async () => {
   const { data } = await api<Catalog>('GET', '/catalog', alice.token);
   const types = data.nodeTypes.map((n) => n.type);
@@ -371,6 +381,8 @@ test('admin: sign in as a user, with everything attributed', async () => {
   assert.equal((await api<MeResponse>('GET', '/auth/me', bob.token)).data.impersonator, null);
 
   assert.equal((await api('GET', '/admin/users', session.data.token)).status, 403, 'no admin powers while impersonating');
+  await api('PATCH', '/auth/me', session.data.token, { tipsSeen: true });
+  assert.equal((await api<MeResponse>('GET', '/auth/me', bob.token)).data.user.tipsSeenAt, null, 'an admin looking around does not use up the tips');
   assert.equal((await api('POST', '/auth/password', session.data.token, { currentPassword: 'x', newPassword: 'whatever-123' })).status, 403);
   const created = await api<Project>('POST', '/projects', session.data.token, { name: 'Made by support', type: 'workflow' });
   assert.equal(created.status, 201);

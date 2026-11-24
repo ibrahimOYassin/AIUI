@@ -26,6 +26,7 @@ export interface UserRow {
   status: 'active' | 'disabled';
   last_seen_at: string | null;
   tokens_valid_after: number;
+  tips_seen_at: string | null;
 }
 
 export function toUser(row: UserRow): User {
@@ -40,6 +41,7 @@ export function toUser(row: UserRow): User {
     status: row.status,
     canRun: canRun(roles),
     lastSeenAt: row.last_seen_at,
+    tipsSeenAt: row.tips_seen_at,
   };
 }
 

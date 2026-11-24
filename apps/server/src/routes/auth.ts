@@ -79,6 +79,10 @@ authRouter.patch('/auth/me', requireAuth, (req, res) => {
   } else if (body.developerName !== undefined && user.roles.includes('developer')) {
     sql.run('UPDATE users SET developer_name = ? WHERE id = ?', text(body.developerName, 'developerName', 60), user.id);
   }
+  // An administrator looking around as someone else must not use up that person's welcome tips.
+  if (typeof body.tipsSeen === 'boolean' && !req.impersonatorId) {
+    sql.run('UPDATE users SET tips_seen_at = ? WHERE id = ?', body.tipsSeen ? now() : null, user.id);
+  }
   res.json({ user: toUser(userRow(user.id)!) });
 });
 

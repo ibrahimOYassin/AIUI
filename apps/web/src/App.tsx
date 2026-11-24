@@ -12,6 +12,7 @@ import { ListingPage } from './pages/Listing';
 import { DeveloperPage } from './pages/Developer';
 import { PluginEditorPage } from './pages/PluginEditor';
 import { AccountPage } from './pages/Account';
+import { DocsPage } from './pages/Docs';
 import { IdePage } from './ide/IdePage';
 import { AdminPage } from './pages/admin/AdminPage';
 import { AdminUserPage } from './pages/admin/UserDetail';
@@ -68,6 +69,7 @@ export function App() {
           <Route path="/developer/new" element={<PluginEditorPage />} />
           <Route path="/developer/edit/:id" element={<PluginEditorPage />} />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/docs" element={<DocsPage />} />
           <Route path="/admin" element={<AdminPage tab="reports" />} />
           <Route path="/admin/reports" element={<Navigate to="/admin" replace />} />
           <Route path="/admin/users" element={<AdminPage tab="users" />} />

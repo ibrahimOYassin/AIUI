@@ -21,6 +21,8 @@ export interface User {
   /** Whether this person may press Run inside the IDE (platform setting + role). */
   canRun: boolean;
   lastSeenAt: string | null;
+  /** When the person closed the welcome tips; null for a new account that has not seen them yet. */
+  tipsSeenAt: string | null;
 }
 
 export interface AuthResponse {
@@ -404,6 +406,8 @@ export interface UpdateMeRequest {
   name?: string;
   becomeDeveloper?: boolean;
   developerName?: string;
+  /** true = the welcome tips were closed; false = show them again. */
+  tipsSeen?: boolean;
 }
 
 // ───────────────────────────── Administration (role "admin") ─────────────────────────────
