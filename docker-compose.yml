@@ -6,6 +6,10 @@
 #
 # Settings come from a ".env" file next to this one (see .env.example).
 #
+# To run on another machine from a registry, set AIUI_IMAGE_PREFIX (e.g. "registry.example:5000/"):
+#   docker compose build && docker compose push                      here
+#   docker compose pull && docker compose up -d --no-build           there, with this file and a .env
+#
 # Ports are published on 127.0.0.1 only, which suits a reverse proxy or Cloudflare Tunnel
 # running on the same machine. In local mode there is no sign-in, so never expose it;
 # to put the IDE online, set AIUI_MODE=web so everyone has to register and sign in.
@@ -17,7 +21,7 @@ services:
     build:
       context: .
       dockerfile: apps/server/Dockerfile
-    image: aiui-api:0.1.0
+    image: ${AIUI_IMAGE_PREFIX:-}aiui-api:${AIUI_TAG:-0.1.0}
     container_name: aiui-api
     init: true
     restart: unless-stopped
@@ -46,7 +50,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    image: aiui-web:0.1.0
+    image: ${AIUI_IMAGE_PREFIX:-}aiui-web:${AIUI_TAG:-0.1.0}
     container_name: aiui-web
     restart: unless-stopped
     depends_on:
