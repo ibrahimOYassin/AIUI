@@ -195,9 +195,11 @@ export function plan(input: BuildInput): BuildPlan {
   for (const connection of input.connections) {
     if (!ids.has(connection.id)) continue;
     const values: Record<string, unknown> = { ...connection.values };
+    // Secret fields hidden for this connection (another service's, say) are left out of .env.
+    const typeFields = input.connectionTypes.get(connection.type)?.fields ?? [];
     const secretKeys = new Set([
       ...Object.keys(connection.secrets),
-      ...(input.connectionTypes.get(connection.type)?.fields.filter((f) => f.type === 'secret').map((f) => f.key) ?? []),
+      ...typeFields.filter((f) => f.type === 'secret' && fieldVisible(f, connection.values, typeFields)).map((f) => f.key),
     ]);
     for (const key of secretKeys) {
       const variable = envName(connection.name, key);

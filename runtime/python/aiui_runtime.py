@@ -656,6 +656,15 @@ def _serve_webhook(workflow, port, path):
     HTTPServer(("0.0.0.0", port), Handler).serve_forever()
 
 
+def _listener(workflow, trigger):
+    """A trigger's step module may define listen(cfg, ctx, handle) to keep the project
+    running and start the flow for each event it receives (a chat message, say).
+    handle(payload) runs the flow once and returns (output, ok)."""
+    step = workflow.steps.get(trigger["type"])
+    module = sys.modules.get(getattr(step, "__module__", "") or "")
+    return getattr(module, "listen", None)
+
+
 def run_cli(workflow, argv=None):
     """Start the project the way its trigger asks for.
 
@@ -684,7 +693,16 @@ def run_cli(workflow, argv=None):
                 print(str(failure), file=sys.stderr)
             return None, False
 
+    listen = None if once else _listener(workflow, trigger)
+
     try:
+        if listen is not None:
+            try:
+                listen(render(cfg, workflow.data), StepContext(workflow, trigger), run_once)
+            except RuntimeError as error:
+                print(str(error), file=sys.stderr)
+                sys.exit(1)
+            return
         if once or mode not in ("schedule", "webhook", "chat"):
             output, ok = run_once(payload)
             if ok and not workflow.events and output is not None:

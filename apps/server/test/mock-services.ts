@@ -4,6 +4,10 @@
  *   POST /v1/messages           Anthropic Messages API (same behaviour)
  *   GET  /todos/:id             a JSON API for the tool to call
  *   POST /mcp                   an MCP server with one tool, "add"
+ *   /bot<token>/...             Telegram Bot API: one waiting update, then sendMessage
+ *   /channels/:id/messages      Discord: one new message from a person and one from a bot
+ *   POST /:phoneId/messages     WhatsApp Cloud API send
+ *   POST /teams-webhook         a Teams Workflows webhook
  *
  * Standalone: npx tsx test/mock-services.ts 4500
  */
@@ -65,15 +69,56 @@ function mcp(body: Json): Json | null {
   }
 }
 
-export function startMock(port = 0): Promise<{ url: string; requests: { path: string; body: Json }[]; close: () => void }> {
-  const requests: { path: string; body: Json }[] = [];
+/** Telegram and Discord answers; each bot token or channel gets its new message once. */
+function messagingState() {
+  const telegramSent = new Set<string>();
+  const discordStarted = new Set<string>();
+  const discordSent = new Set<string>();
+  return {
+    telegram(token: string, method: string): Json | null {
+      if (method === 'deleteWebhook') return { ok: true, result: true };
+      if (method === 'getMe') return token === 'bad-token' ? null : { ok: true, result: { id: 1, is_bot: true, username: 'aiui_test_bot' } };
+      if (method === 'getUpdates') {
+        if (telegramSent.has(token)) return { ok: true, result: [] };
+        telegramSent.add(token);
+        return { ok: true, result: [{ update_id: 900, message: { message_id: 5, text: 'hello bot', chat: { id: 4242, type: 'private' }, from: { id: 7, first_name: 'Sam', last_name: 'Rivera' } } }] };
+      }
+      if (method === 'sendMessage') return { ok: true, result: { message_id: 77 } };
+      return null;
+    },
+    discordList(channel: string): Json[] {
+      if (!discordStarted.has(channel)) {
+        discordStarted.add(channel);
+        return [{ id: '100', content: 'an old message', author: { id: 'u0', username: 'old' } }];
+      }
+      if (discordSent.has(channel)) return [];
+      discordSent.add(channel);
+      // Newest first, as Discord sends them.
+      return [
+        { id: '102', content: 'bot talk', author: { id: 'b1', username: 'somebot', bot: true } },
+        { id: '101', content: 'hi from discord', author: { id: 'u1', username: 'sam', global_name: 'Sam' } },
+      ];
+    },
+  };
+}
+
+export interface MockRequest { method: string; path: string; body: Json; headers: http.IncomingHttpHeaders }
+
+export function startMock(port = 0): Promise<{ url: string; requests: MockRequest[]; close: () => void }> {
+  const requests: MockRequest[] = [];
+  const messaging = messagingState();
   const server = http.createServer((req, res) => {
     let raw = '';
     req.on('data', (chunk) => (raw += chunk));
     req.on('end', () => {
       const path = (req.url ?? '').split('?')[0]!;
-      const body: Json = raw ? JSON.parse(raw) : {};
-      requests.push({ path, body });
+      let body: Json = {};
+      try {
+        body = raw ? JSON.parse(raw) : {};
+      } catch {
+        body = { raw };
+      }
+      requests.push({ method: req.method ?? 'GET', path, body, headers: req.headers });
       const send = (status: number, payload: Json | null) => {
         res.writeHead(status, { 'Content-Type': 'application/json' });
         res.end(payload ? JSON.stringify(payload) : '');
@@ -84,6 +129,20 @@ export function startMock(port = 0): Promise<{ url: string; requests: { path: st
         const result = mcp(body);
         return result ? send(200, result) : send(202, null);
       }
+      const telegram = path.match(/^\/bot([^/]+)\/(\w+)$/);
+      if (telegram) {
+        const result = messaging.telegram(telegram[1]!, telegram[2]!);
+        // getUpdates is a long poll: an empty answer comes back after a short wait.
+        if (result && telegram[2] === 'getUpdates' && !result.result.length) return void setTimeout(() => send(200, result), 300);
+        return result ? send(200, result) : send(404, { ok: false, description: 'Not Found' });
+      }
+      const discord = path.match(/^\/channels\/([^/]+)\/messages$/);
+      if (discord && req.method === 'GET') return send(200, messaging.discordList(discord[1]!) as unknown as Json);
+      if (discord && req.method === 'POST') return send(200, { id: `msg-${requests.length}`, channel_id: discord[1] });
+      if (req.method === 'POST' && path === '/teams-webhook') return send(202, null);
+      const whatsapp = path.match(/^\/([^/]+)\/messages$/);
+      if (whatsapp && req.method === 'POST' && body.messaging_product === 'whatsapp')
+        return send(200, { messaging_product: 'whatsapp', contacts: [{ input: body.to, wa_id: body.to }], messages: [{ id: `wamid.${requests.length}` }] });
       const todo = path.match(/^\/todos\/(\d+)$/);
       if (todo) return send(200, { id: Number(todo[1]), title: 'mock todo', completed: true });
       send(404, { error: 'not found' });

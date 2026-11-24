@@ -16,6 +16,7 @@ const SECTIONS = [
   { id: 'running', label: 'Run and test' },
   { id: 'examples', label: 'Examples' },
   { id: 'connections', label: 'Connections' },
+  { id: 'messaging', label: 'Telegram, WhatsApp, Discord, Teams' },
   { id: 'steps', label: 'Step library' },
   { id: 'export', label: 'Export as code' },
   { id: 'plugins', label: 'Marketplace and plugins' },
@@ -93,6 +94,7 @@ export function DocsPage() {
         <Running show={show} />
         <Examples />
         <Connections show={show} />
+        <Messaging />
         <StepLibrary />
         <ExportSection show={show} />
         <Plugins />
@@ -624,6 +626,91 @@ function Connections({ show }: { show: Show }) {
         </div>
         <Figure src="/guide/connection.webp" alt="The New connection dialog" show={show} />
       </div>
+    </Section>
+  );
+}
+
+function Messaging() {
+  return (
+    <Section
+      id="messaging"
+      title="Chat apps: Telegram, WhatsApp, Discord and Teams"
+      lead="The free Messaging Bridge plugin lets people talk to your project from the chat app they already use, and lets your project send its results to any of them."
+    >
+      <Flow
+        steps={[
+          { label: 'When a message arrives', icon: 'messages-square', kind: 'trigger', note: 'from Telegram' },
+          { label: 'AI Agent', icon: 'bot', kind: 'ai', note: 'writes the answer' },
+          { label: 'Send a message', icon: 'send', kind: 'action', note: 'to Telegram, Discord…' },
+        ]}
+      />
+      <Steps>
+        <li>
+          <strong>Install it.</strong> Open <strong>Marketplace</strong>, find <strong>Messaging Bridge</strong> and click Install. It is free.
+        </li>
+        <li>
+          <strong>Add a connection</strong> for each app: Connections → New connection → <strong>Messaging app</strong>, then pick the app.
+          The form only asks for what that app needs (see the table).
+        </li>
+        <li>
+          <strong>Start from a template:</strong> <em>AI bot for Telegram, WhatsApp, Discord or Teams</em> (AI Agent) answers every message,
+          and <em>Forward messages to another app</em> (Workflow) passes messages on, for example from Telegram to Discord.
+        </li>
+        <li>
+          <strong>Press Run</strong> to test with the <em>Test message</em>. Then <strong>Export</strong> the project and start it with{' '}
+          <code>python main.py</code> or <code>dotnet run</code>: it keeps running and answers every new message.
+        </li>
+      </Steps>
+
+      <table className="docs-table">
+        <thead>
+          <tr>
+            <th>App</th>
+            <th>What you need</th>
+            <th>How messages reach your project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Telegram</td>
+            <td>A bot token from @BotFather (send it <code>/newbot</code>).</td>
+            <td>Your project asks Telegram for new messages. No public address needed.</td>
+          </tr>
+          <tr>
+            <td>Discord</td>
+            <td>A bot token and a channel ID. Turn on <em>Message Content Intent</em> for the bot and invite it to the channel.</td>
+            <td>Your project checks the channel every few seconds. No public address needed.</td>
+          </tr>
+          <tr>
+            <td>WhatsApp</td>
+            <td>A Meta app with the WhatsApp Cloud API: access token, phone number ID, a verify token you choose, and the app secret.</td>
+            <td>Meta calls your project's web address, so it must be reachable over HTTPS (port 8080, path /messages by default).</td>
+          </tr>
+          <tr>
+            <td>Microsoft Teams</td>
+            <td>A Workflows webhook URL for sending, and an outgoing webhook's security token for receiving.</td>
+            <td>Teams calls your web address when someone @mentions the webhook in a channel. HTTPS is needed here too.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Who gets the message?</h3>
+      <p>
+        Leave <strong>To</strong> empty in <em>Send a message</em> to answer in the chat the message came from. To send somewhere else, type a
+        Telegram chat ID, a WhatsApp number (country code, digits only) or a Discord channel ID, or set a <em>Default recipient</em> on the
+        connection. Teams always posts to the channel of its webhook. Long answers are split into several messages automatically.
+      </p>
+      <p>
+        The start step gives you <code>{'{{input.text}}'}</code>, <code>{'{{input.senderName}}'}</code>,{' '}
+        <code>{'{{input.chatId}}'}</code> and <code>{'{{input.platform}}'}</code>. Find them under <strong>Insert data</strong>.
+      </p>
+      <Callout kind="warn" title="Good to know">
+        <p>
+          WhatsApp only lets a business send free-form text within 24 hours of the person's last message. Teams needs a first answer within 5
+          seconds, so it gets a short "working on it" reply at once and the real answer follows. Each message is answered on its own; the bot
+          does not remember earlier messages.
+        </p>
+      </Callout>
     </Section>
   );
 }

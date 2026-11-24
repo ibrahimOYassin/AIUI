@@ -147,7 +147,7 @@ for (const [address, prefix] of [['::1', 128], ['fc00::', 7], ['fe80::', 10]] as
  * public addresses. Otherwise "Test" would let anyone probe the server's own network.
  */
 async function assertPublicTarget(type: string, v: Record<string, unknown>): Promise<void> {
-  const raw = type === 'smtp' ? v.host : type === 'mcp' ? v.url : v.baseUrl;
+  const raw = type === 'smtp' ? v.host : type === 'mcp' ? v.url : type === 'messaging_app' ? v.apiBase : v.baseUrl;
   if (typeof raw !== 'string' || !raw.trim()) return;
   let host = raw.trim();
   if (type !== 'smtp') {
@@ -161,6 +161,47 @@ async function assertPublicTarget(type: string, v: Record<string, unknown>): Pro
   const addresses = await dns.lookup(host, { all: true }).catch(() => []);
   if (addresses.some((a) => privateRanges.check(a.address, a.family === 6 ? 'ipv6' : 'ipv4')))
     throw new HttpError(400, 'Only an administrator can test a connection to a private or local address.');
+}
+
+/** Messaging Bridge: asks each app who the bot is, without sending anything. */
+async function testMessagingApp(str: (key: string) => string): Promise<TestConnectionResult> {
+  const base = (fallback: string) => (str('apiBase') || fallback).replace(/\/+$/, '');
+  const json = async (response: Response) => (await response.json().catch(() => null)) as Record<string, any> | null;
+  switch (str('service') || 'telegram') {
+    case 'telegram': {
+      if (!str('token')) return { ok: false, message: 'Add the bot token from @BotFather.' };
+      const response = await fetchWithTimeout(`${base('https://api.telegram.org')}/bot${str('token')}/getMe`);
+      if (response.status === 401 || response.status === 404) return { ok: false, message: 'Telegram did not accept the bot token.' };
+      if (!response.ok) return { ok: false, message: `Telegram answered ${response.status}.` };
+      const bot = (await json(response))?.result;
+      return { ok: true, message: `Connected to Telegram as @${bot?.username ?? 'your bot'}.` };
+    }
+    case 'discord': {
+      if (!str('token')) return { ok: false, message: 'Add the bot token from the Discord Developer Portal.' };
+      const api = base('https://discord.com/api/v10');
+      const headers = { Authorization: `Bot ${str('token')}` };
+      const me = await fetchWithTimeout(`${api}/users/@me`, { headers });
+      if (me.status === 401) return { ok: false, message: 'Discord did not accept the bot token.' };
+      if (!me.ok) return { ok: false, message: `Discord answered ${me.status}.` };
+      const name = (await json(me))?.username ?? 'your bot';
+      if (!str('channelId')) return { ok: true, message: `Connected to Discord as ${name}. Add a channel ID to receive messages.` };
+      const channel = await fetchWithTimeout(`${api}/channels/${encodeURIComponent(str('channelId'))}`, { headers });
+      if (!channel.ok) return { ok: false, message: `Connected as ${name}, but the bot cannot see channel ${str('channelId')} (${channel.status}). Invite it to the server.` };
+      return { ok: true, message: `Connected to Discord as ${name}. It can see #${(await json(channel))?.name ?? str('channelId')}.` };
+    }
+    case 'whatsapp': {
+      if (!str('accessToken') || !str('phoneNumberId')) return { ok: false, message: 'Add the access token and the phone number ID.' };
+      const url = `${base('https://graph.facebook.com/v21.0')}/${encodeURIComponent(str('phoneNumberId'))}?fields=display_phone_number,verified_name`;
+      const response = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${str('accessToken')}` } });
+      const body = await json(response);
+      if (!response.ok) return { ok: false, message: `WhatsApp answered ${response.status}: ${String(body?.error?.message ?? 'check the token and phone number ID').slice(0, 200)}` };
+      return { ok: true, message: `Connected to WhatsApp. Sending from ${body?.display_phone_number ?? 'your number'}${body?.verified_name ? ` (${body.verified_name})` : ''}.` };
+    }
+    case 'teams':
+      return { ok: true, message: 'Saved. Teams cannot check a webhook without posting to the channel, so it is checked when the first message is sent.' };
+    default:
+      return { ok: false, message: 'Choose which app this connection is for.' };
+  }
 }
 
 async function testConnection(type: string, v: Record<string, unknown>): Promise<TestConnectionResult> {
@@ -216,6 +257,8 @@ async function testConnection(type: string, v: Record<string, unknown>): Promise
       await tcpReachable(str('host'), Number(v.port) || 587);
       return { ok: true, message: `Reached ${str('host')}:${Number(v.port) || 587}. Credentials are checked when an email is sent.` };
     }
+    case 'messaging_app':
+      return testMessagingApp(str);
     default:
       return { ok: true, message: 'Saved. This kind of connection is checked the first time a step uses it.' };
   }

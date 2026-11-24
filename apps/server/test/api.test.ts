@@ -518,6 +518,14 @@ test('public exposure: cross-origin access, private-address checks, sign-in thro
   const adminLocal = (await api<Connection>('POST', '/connections', admin.token, { name: 'Mock', type: 'http_api', values: { baseUrl: `${mock.url}/todos/1`, authType: 'none' } })).data;
   assert.equal((await api<{ ok: boolean }>('POST', `/connections/${adminLocal.id}/test`, admin.token)).data.ok, true);
 
+  // Messaging Bridge: "Test" asks Telegram who the bot is.
+  assert.equal((await api('POST', '/market/plugins/aiui.messaging/install', admin.token)).status, 200);
+  const bot = (await api<Connection>('POST', '/connections', admin.token, { name: 'Bot', type: 'messaging_app', values: { service: 'telegram', apiBase: mock.url, token: 'good-token' } })).data;
+  const tested = (await api<{ ok: boolean; message: string }>('POST', `/connections/${bot.id}/test`, admin.token)).data;
+  assert.deepEqual(tested, { ok: true, message: 'Connected to Telegram as @aiui_test_bot.' });
+  await api('PUT', `/connections/${bot.id}`, admin.token, { name: 'Bot', type: 'messaging_app', values: { service: 'telegram', apiBase: mock.url, token: 'bad-token' } });
+  assert.equal((await api<{ ok: boolean }>('POST', `/connections/${bot.id}/test`, admin.token)).data.ok, false);
+
   let status = 0;
   for (let attempt = 0; attempt < 10; attempt++)
     status = (await api('POST', '/auth/login', undefined, { email: 'late@example.com', password: 'guess-' + attempt })).status;

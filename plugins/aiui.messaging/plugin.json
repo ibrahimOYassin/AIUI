@@ -1,0 +1,147 @@
+{
+  "id": "aiui.messaging",
+  "name": "Messaging Bridge",
+  "version": "1.0.0",
+  "description": "Receive messages from Telegram, WhatsApp, Discord or Microsoft Teams, run your flow, and send the result as a message to any of them. Build chat bots or forward messages from one app to another.",
+  "author": "AIUI",
+  "icon": "messages-square",
+  "category": "Communication",
+  "listing": {
+    "summary": "Telegram, WhatsApp, Discord and Teams in and out.",
+    "priceCents": 0,
+    "tags": ["telegram", "whatsapp", "discord", "teams", "chat bot", "messaging"]
+  },
+  "connectionTypes": [
+    {
+      "type": "messaging_app", "label": "Messaging app", "icon": "messages-square",
+      "description": "A Telegram bot, a WhatsApp Business number, a Discord bot or a Microsoft Teams channel.",
+      "fields": [
+        { "key": "service", "label": "App", "type": "select", "default": "telegram", "required": true, "options": [
+          { "value": "telegram", "label": "Telegram" },
+          { "value": "whatsapp", "label": "WhatsApp (Cloud API)" },
+          { "value": "discord", "label": "Discord" },
+          { "value": "teams", "label": "Microsoft Teams" } ] },
+        { "key": "token", "label": "Bot token", "type": "secret", "required": true, "showIf": { "field": "service", "equals": ["telegram", "discord"] },
+          "help": "Telegram: message @BotFather, send /newbot and copy the token. Discord: Developer Portal → your app → Bot → Reset Token, and turn on Message Content Intent." },
+        { "key": "accessToken", "label": "Access token", "type": "secret", "required": true, "showIf": { "field": "service", "equals": "whatsapp" },
+          "help": "Meta for Developers → your app → WhatsApp → API Setup. Use a permanent system-user token for real use." },
+        { "key": "phoneNumberId", "label": "Phone number ID", "type": "text", "required": true, "showIf": { "field": "service", "equals": "whatsapp" },
+          "help": "Shown on the same API Setup page, under the sending number." },
+        { "key": "verifyToken", "label": "Verify token", "type": "text", "showIf": { "field": "service", "equals": "whatsapp" },
+          "help": "Needed to receive messages. Any word you choose; type the same word in Meta's webhook settings so it can confirm your address." },
+        { "key": "appSecret", "label": "App secret", "type": "secret", "showIf": { "field": "service", "equals": "whatsapp" },
+          "help": "Optional but recommended: App settings → Basic → App secret. Messages that are not signed with it are refused." },
+        { "key": "channelId", "label": "Channel ID", "type": "text", "required": true, "showIf": { "field": "service", "equals": "discord" },
+          "help": "The channel to listen to and post in. In Discord turn on Developer Mode, right-click the channel and choose Copy Channel ID." },
+        { "key": "webhookUrl", "label": "Incoming webhook URL", "type": "secret", "required": true, "showIf": { "field": "service", "equals": "teams" },
+          "help": "For sending. In the channel choose … → Workflows → \"Post to a channel when a webhook request is received\" and paste the address here." },
+        { "key": "teamsToken", "label": "Outgoing webhook security token", "type": "secret", "showIf": { "field": "service", "equals": "teams" },
+          "help": "Needed to receive messages. In Teams: the team's … → Manage team → Apps → Create an outgoing webhook, then copy the token it shows once." },
+        { "key": "defaultTo", "label": "Default recipient", "type": "text", "showIf": { "field": "service", "equals": ["telegram", "whatsapp"] },
+          "help": "Used when a step does not say who gets the message. Telegram: a chat ID. WhatsApp: a phone number with country code, digits only." },
+        { "key": "apiBase", "label": "API address", "type": "text", "group": "Advanced", "showIf": { "field": "service", "equals": ["telegram", "whatsapp", "discord"] },
+          "help": "Leave empty for the official address. Set it for a self-hosted Telegram Bot API server or a test server." }
+      ],
+      "presets": [
+        { "label": "Telegram bot", "values": { "service": "telegram" } },
+        { "label": "WhatsApp Business", "values": { "service": "whatsapp" } },
+        { "label": "Discord bot", "values": { "service": "discord" } },
+        { "label": "Microsoft Teams channel", "values": { "service": "teams" } }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "type": "messaging.receive", "label": "When a message arrives", "kind": "trigger", "category": "Start", "icon": "messages-square",
+      "description": "Start the flow for every message sent to your Telegram bot, WhatsApp number, Discord channel or Teams channel.",
+      "inputs": [], "outputs": [{ "id": "out", "label": "Start" }],
+      "fields": [
+        { "key": "connection", "label": "Receive from", "type": "connection", "connectionType": "messaging_app", "required": true },
+        { "key": "sampleText", "label": "Test message", "type": "text", "default": "Hello! What can you do?",
+          "help": "Used when you press Run in the IDE. The exported project waits for real messages instead." },
+        { "key": "port", "label": "Port", "type": "number", "default": 8080, "group": "Advanced",
+          "help": "WhatsApp and Teams send messages to your project's web address, so it listens on this port. Telegram and Discord do not need it." },
+        { "key": "path", "label": "Path", "type": "text", "default": "/messages", "group": "Advanced",
+          "help": "For WhatsApp and Teams: the address is https://your-server/messages (behind HTTPS, for example a reverse proxy or tunnel)." },
+        { "key": "teamsReply", "label": "Teams: first answer", "type": "text", "default": "Got it, working on it…", "group": "Advanced",
+          "help": "Teams expects an answer within 5 seconds, so this is sent at once. Use a \"Send a message\" step for the real reply." },
+        { "key": "pollSeconds", "label": "Discord: check every (seconds)", "type": "number", "default": 3, "group": "Advanced" }
+      ],
+      "outputFields": [
+        { "key": "text", "label": "Message text" },
+        { "key": "senderName", "label": "Sender name" },
+        { "key": "senderId", "label": "Sender ID" },
+        { "key": "chatId", "label": "Chat ID (to reply to)" },
+        { "key": "platform", "label": "App (telegram, whatsapp, discord, teams)" },
+        { "key": "messageId", "label": "Message ID" },
+        { "key": "raw", "label": "Everything the app sent" }
+      ],
+      "codegen": { "csharp": { "className": "MessagingReceiveStep" } }
+    },
+    {
+      "type": "messaging.send", "label": "Send a message", "kind": "action", "category": "Communication", "icon": "send",
+      "description": "Send text to a Telegram chat, a WhatsApp number, a Discord channel or a Teams channel. Long text is split into several messages.",
+      "inputs": [{ "id": "in", "label": "In" }], "outputs": [{ "id": "out", "label": "Sent" }],
+      "fields": [
+        { "key": "connection", "label": "Send with", "type": "connection", "connectionType": "messaging_app", "required": true },
+        { "key": "message", "label": "Message", "type": "textarea", "templated": true, "required": true, "rows": 4 },
+        { "key": "to", "label": "To", "type": "text", "templated": true,
+          "placeholder": "Empty: reply in the same chat",
+          "help": "Telegram chat ID, WhatsApp number (country code, digits only) or Discord channel ID. Leave empty to answer in the chat the message came from, or to use the connection's default. Teams always posts to the webhook's channel." }
+      ],
+      "outputFields": [
+        { "key": "sent", "label": "Sent (true/false)" },
+        { "key": "to", "label": "Sent to" },
+        { "key": "parts", "label": "Number of messages" },
+        { "key": "messageIds", "label": "Message IDs" }
+      ],
+      "codegen": { "csharp": { "className": "MessagingSendStep" } }
+    }
+  ],
+  "templates": [
+    {
+      "id": "aiui.messaging.ai-bot",
+      "name": "AI bot for Telegram, WhatsApp, Discord or Teams",
+      "type": "agent",
+      "icon": "messages-square",
+      "description": "Answers every message people send to your bot with an AI agent, in the same chat.",
+      "graph": {
+        "nodes": [
+          { "id": "t1", "type": "messaging.receive", "name": "incoming", "position": { "x": 40, "y": 120 },
+            "config": { "connection": "", "sampleText": "Hi! What can you help me with?" } },
+          { "id": "g1", "type": "ai.agent", "name": "assistant", "position": { "x": 340, "y": 120 },
+            "config": {
+              "connection": "",
+              "instructions": "You are a friendly assistant answering chat messages. Keep answers short and use plain text without markdown.",
+              "prompt": "{{input.senderName}} wrote: {{input.text}}",
+              "mcpServers": [], "useHistory": false, "maxTurns": 8
+            } },
+          { "id": "s1", "type": "messaging.send", "name": "reply", "position": { "x": 640, "y": 120 },
+            "config": { "connection": "", "message": "{{assistant.text}}", "to": "" } }
+        ],
+        "edges": [
+          { "id": "e1", "source": "t1", "sourcePort": "out", "target": "g1" },
+          { "id": "e2", "source": "g1", "sourcePort": "out", "target": "s1" }
+        ]
+      }
+    },
+    {
+      "id": "aiui.messaging.forward",
+      "name": "Forward messages to another app",
+      "type": "workflow",
+      "icon": "send",
+      "description": "Passes every message from one app to another, for example from a Telegram group to a Discord channel.",
+      "graph": {
+        "nodes": [
+          { "id": "t1", "type": "messaging.receive", "name": "incoming", "position": { "x": 40, "y": 120 },
+            "config": { "connection": "", "sampleText": "The build finished." } },
+          { "id": "s1", "type": "messaging.send", "name": "forward", "position": { "x": 340, "y": 120 },
+            "config": { "connection": "", "message": "{{input.senderName}} on {{input.platform}}: {{input.text}}", "to": "" } }
+        ],
+        "edges": [
+          { "id": "e1", "source": "t1", "sourcePort": "out", "target": "s1" }
+        ]
+      }
+    }
+  ]
+}

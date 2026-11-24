@@ -682,6 +682,9 @@ public sealed class Workflow
         _nodes.Values.FirstOrDefault(n => J.Str(n, "kind") == "trigger")
         ?? throw new InvalidOperationException("This project has no trigger step.");
 
+    /// <summary>The code behind a step type, or null when the project has none.</summary>
+    public StepFunc? StepFor(string type) => _steps.TryGetValue(type, out var step) ? step : null;
+
     public List<JsonObject> Targets(string nodeId, string port) =>
         _edges.Where(e => J.Str(e, "source") == nodeId && J.Str(e, "sourcePort") == port && _nodes.ContainsKey(J.Str(e, "target")))
             .Select(e => _nodes[J.Str(e, "target")]).ToList();
@@ -832,6 +835,27 @@ public static class Cli
                 if (!workflow.Events) Console.Error.WriteLine(failure.Message);
                 return (null, false);
             }
+        }
+
+        // A trigger's step class may declare
+        //   public static Task ListenAsync(JsonObject cfg, StepContext ctx, Func<JsonNode?, Task<(JsonNode? Output, bool Ok)>> handle)
+        // to keep the project running and start the flow for each event it receives.
+        var listen = once ? null : workflow.StepFor(J.Str(trigger, "type"))?.Method.DeclaringType
+            ?.GetMethod("ListenAsync", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        if (listen is not null)
+        {
+            Func<JsonNode?, Task<(JsonNode? Output, bool Ok)>> handle = RunOnce;
+            try
+            {
+                var rendered = J.Render(cfg, workflow.Data) as JsonObject ?? new JsonObject();
+                await (Task)listen.Invoke(null, [rendered, new StepContext(workflow, trigger), handle])!;
+            }
+            catch (InvalidOperationException error)
+            {
+                Console.Error.WriteLine(error.Message);
+                return 1;
+            }
+            return 0;
         }
 
         if (once || mode is not ("schedule" or "webhook" or "chat"))
