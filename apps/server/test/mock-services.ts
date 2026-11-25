@@ -55,6 +55,32 @@ function anthropicMessage(body: Json): Json {
   };
 }
 
+/**
+ * The AI Assistant's model, streamed like OpenAI. First it asks for the person's projects and for the
+ * project named "PROJECT:<id>" in the question (to check it cannot read someone else's), then it
+ * answers with the tool names it was offered and everything the tools returned.
+ */
+function assistantStream(body: Json): string {
+  const messages: Json[] = body.messages ?? [];
+  const toolResults = messages.filter((m) => m.role === 'tool').map((m) => String(m.content));
+  const question = String([...messages].reverse().find((m) => m.role === 'user')?.content ?? '');
+  const chunks: Json[] = [];
+  if (!toolResults.length && body.tools?.length) {
+    const id = /PROJECT:(\S+)/.exec(question)?.[1] ?? 'none';
+    const args = JSON.stringify({ project_id: id });
+    chunks.push(
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', function: { name: 'list_my_projects', arguments: '' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '{}' } }, { index: 1, id: 'c2', function: { name: 'get_project', arguments: args.slice(0, 5) } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 1, function: { arguments: args.slice(5) } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 2, id: 'c3', function: { name: 'search_docs', arguments: '{"query":"connections"}' } }] }, finish_reason: 'tool_calls' }] },
+    );
+  } else {
+    const answer = `TOOLS:${(body.tools ?? []).map((t: Json) => t.function.name).join(',')}\nSYSTEM:${String(messages[0]?.content ?? '').includes('guest') ? 'guest' : 'member'}\nRESULTS:${toolResults.join(' || ')}`;
+    chunks.push({ choices: [{ delta: { content: answer.slice(0, 20) } }] }, { choices: [{ delta: { content: answer.slice(20) }, finish_reason: 'stop' }] });
+  }
+  return chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n';
+}
+
 function mcp(body: Json): Json | null {
   const reply = (result: Json) => ({ jsonrpc: '2.0', id: body.id, result });
   switch (body.method) {
@@ -123,6 +149,10 @@ export function startMock(port = 0): Promise<{ url: string; requests: MockReques
         res.writeHead(status, { 'Content-Type': 'application/json' });
         res.end(payload ? JSON.stringify(payload) : '');
       };
+      if (req.method === 'POST' && path === '/assistant/v1/chat/completions') {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        return void res.end(assistantStream(body));
+      }
       if (req.method === 'POST' && path.endsWith('/chat/completions')) return send(200, chatCompletion(body));
       if (req.method === 'POST' && path.endsWith('/v1/messages')) return send(200, anthropicMessage(body));
       if (req.method === 'POST' && path === '/mcp') {

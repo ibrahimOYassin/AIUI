@@ -3,17 +3,19 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { EmptyState, PageHeader, Tabs } from '../../components/ui';
 import { useApp } from '../../stores/app';
+import { AssistantTab } from './AssistantTab';
 import { PluginsTab } from './PluginsTab';
 import { ReportsTab } from './ReportsTab';
 import { SettingsTab } from './SettingsTab';
 import { UsersTab } from './UsersTab';
 
-export type AdminTab = 'reports' | 'users' | 'plugins' | 'settings';
+export type AdminTab = 'reports' | 'users' | 'plugins' | 'assistant' | 'settings';
 
 const PATHS: Record<AdminTab, string> = {
   reports: '/admin',
   users: '/admin/users',
   plugins: '/admin/plugins',
+  assistant: '/admin/assistant',
   settings: '/admin/settings',
 };
 
@@ -51,6 +53,7 @@ export function AdminPage({ tab }: { tab: AdminTab }) {
             { id: 'reports', label: 'Reports' },
             { id: 'users', label: 'Users' },
             { id: 'plugins', label: 'Plugins' },
+            { id: 'assistant', label: 'Assistant' },
             { id: 'settings', label: 'Settings' },
           ]}
           value={tab}
@@ -59,6 +62,7 @@ export function AdminPage({ tab }: { tab: AdminTab }) {
         {tab === 'reports' && <ReportsTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'plugins' && <PluginsTab />}
+        {tab === 'assistant' && <AssistantTab />}
         {tab === 'settings' && <SettingsTab />}
       </div>
     </AdminOnly>

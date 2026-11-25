@@ -49,6 +49,8 @@ export interface AppConfig {
   /** False when an admin closed sign-ups (web mode). */
   allowRegistration: boolean;
   version: string;
+  /** The AI Assistant, when an administrator has turned it on. */
+  assistant: AssistantInfo | null;
 }
 
 // ───────────────────────────── Graph ─────────────────────────────
@@ -530,6 +532,63 @@ export interface AdminUpdatePluginRequest {
   status?: 'draft' | 'published';
   official?: boolean;
 }
+
+// ───────────────────────────── AI Assistant ─────────────────────────────
+
+/** How an administrator set up the assistant. The API key is never sent back, only whether one is stored. */
+export interface AssistantSettings {
+  enabled: boolean;
+  name: string;
+  /** The first message people see when they open the assistant. */
+  greeting: string;
+  provider: 'anthropic' | 'openai';
+  model: string;
+  /** Empty = the provider's own address. For OpenAI-compatible servers such as Ollama, LM Studio or vLLM. */
+  baseUrl: string;
+  apiKeySet: boolean;
+  /** Extra instructions from the administrator: tone, rules, what to recommend. */
+  instructions: string;
+  /** Extra facts the assistant should know, e.g. about this organisation's own setup. */
+  knowledge: string;
+  /** "users": signed-in people. "everyone": guests too (they can ask about the documentation only). */
+  access: 'users' | 'everyone';
+  /** Questions per person per day. 0 = no limit. */
+  dailyLimit: number;
+}
+
+export interface SaveAssistantSettingsRequest extends Partial<Omit<AssistantSettings, 'apiKeySet'>> {
+  /** A new key. Empty or missing keeps the stored one. */
+  apiKey?: string;
+  clearApiKey?: boolean;
+}
+
+/** What every visitor learns about the assistant from /api/config. */
+export interface AssistantInfo {
+  name: string;
+  greeting: string;
+  /** Whether people without an account may use it. */
+  guests: boolean;
+}
+
+export interface AssistantMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AssistantChatRequest {
+  messages: AssistantMessage[];
+  /** The project open in the editor, so "this project" means something. */
+  projectId?: string;
+  /** The page the person is on, e.g. "/connections". */
+  page?: string;
+}
+
+/** One line of the NDJSON stream returned by POST /assistant/chat. */
+export type AssistantEvent =
+  | { type: 'text'; text: string }
+  | { type: 'tool'; label: string }
+  | { type: 'done'; remaining: number | null }
+  | { type: 'error'; message: string };
 
 export interface ApiError {
   error: string;

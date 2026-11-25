@@ -9,6 +9,9 @@ import type {
   AdminUserDetail,
   AdminUserQuery,
   AppConfig,
+  AssistantChatRequest,
+  AssistantEvent,
+  AssistantSettings,
   AuthResponse,
   Catalog,
   ChangePasswordRequest,
@@ -31,6 +34,7 @@ import type {
   ReportOverview,
   RunEvent,
   RunRequest,
+  SaveAssistantSettingsRequest,
   SaveConnectionRequest,
   SaveDevPluginRequest,
   TestConnectionResult,
@@ -321,7 +325,41 @@ export const api = {
   adminDeletePlugin: (id: string) => request<unknown>('DELETE', `/admin/plugins/${enc(id)}`),
   adminSettings: () => request<PlatformSettings>('GET', '/admin/settings'),
   adminSaveSettings: (body: Partial<PlatformSettings>) => request<PlatformSettings>('PUT', '/admin/settings', body),
+  adminAssistant: () => request<AssistantSettings>('GET', '/admin/assistant'),
+  adminSaveAssistant: (body: SaveAssistantSettingsRequest) => request<AssistantSettings>('PUT', '/admin/assistant', body),
+  adminTestAssistant: (body: SaveAssistantSettingsRequest) => request<TestConnectionResult>('POST', '/admin/assistant/test', body),
 };
+
+/** Ask the AI Assistant and yield its answer as it is written. Abort the signal to stop. */
+export async function* streamAssistant(body: AssistantChatRequest, signal: AbortSignal): AsyncGenerator<AssistantEvent, void, void> {
+  const res = await send('POST', '/assistant/chat', body, signal);
+  if (!res.body) return;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const parse = (line: string): AssistantEvent | null => {
+    try {
+      const value = JSON.parse(line) as AssistantEvent;
+      return value && typeof value === 'object' && 'type' in value ? value : null;
+    } catch {
+      return null;
+    }
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl = buffer.indexOf('\n');
+    while (nl >= 0) {
+      const event = parse(buffer.slice(0, nl).trim());
+      buffer = buffer.slice(nl + 1);
+      if (event) yield event;
+      nl = buffer.indexOf('\n');
+    }
+  }
+  const last = buffer.trim() ? parse(buffer.trim()) : null;
+  if (last) yield last;
+}
 
 /** Run a saved project and yield its events as they arrive. Abort the signal to stop. */
 export async function* streamRun(

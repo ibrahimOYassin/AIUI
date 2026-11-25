@@ -50,6 +50,7 @@ export function AppRoutes() {
             <Route path="/admin/users" element={<AdminPage tab="users" />} />
             <Route path="/admin/users/:id" element={<AdminUserPage />} />
             <Route path="/admin/plugins" element={<AdminPage tab="plugins" />} />
+            <Route path="/admin/assistant" element={<AdminPage tab="assistant" />} />
             <Route path="/admin/settings" element={<AdminPage tab="settings" />} />
             <Route path="*" element={<NotFound />} />
           </>

@@ -404,6 +404,7 @@ account becomes the administrator so its projects are kept. Registering never gr
 | Activity log | Every sign-in (and failed sign-in), project created / run / exported / deleted, connection added, plugin installed / bought / published, and every admin action — filterable by person and kind. Actions taken while impersonating are recorded under the user with the administrator named |
 | Marketplace | See every plugin with developer and sales; publish / unpublish; mark official; delete unsold third-party plugins |
 | Settings | Open or close sign-ups; who may press Run: nobody, administrators only (default in web mode), everyone |
+| AI Assistant | Turn it on; choose Claude or an OpenAI-compatible server, the model, base URL and API key (stored encrypted, never returned); test it; name and greeting; extra instructions and extra knowledge (Markdown); signed-in people only or guests too; questions per person per day |
 
 Safeguards: an administrator cannot deactivate, demote or delete themselves, and the last
 administrator who can sign in cannot be removed. A deactivated account is rejected at sign-in
@@ -416,7 +417,34 @@ Data behind the reports: `events` (who, when, what, optional impersonator), `act
 Routes: `POST /auth/password`; `GET/POST /admin/users`, `GET/PATCH/DELETE /admin/users/:id`,
 `POST /admin/users/:id/password`, `POST /admin/users/:id/impersonate`;
 `GET /admin/reports/overview`, `GET /admin/reports/activity`; `GET /admin/plugins`,
-`PATCH/DELETE /admin/plugins/:id`; `GET/PUT /admin/settings`.
+`PATCH/DELETE /admin/plugins/:id`; `GET/PUT /admin/settings`; `GET/PUT /admin/assistant`,
+`POST /admin/assistant/test`.
+
+### 11b. AI Assistant
+
+A chat panel next to every page (`POST /assistant/chat`, NDJSON stream of `text`, `tool`,
+`done` and `error` events). The server runs the model loop itself, with read-only tools that
+always act as the person asking: `search_docs` (keyword search over the Docs page as
+Markdown — `docs/APP_GUIDE.md`, written by the web build from `Docs.tsx` —, README.md, the other
+docs/*.md, every published Marketplace plugin and the administrator's extra knowledge, split at
+headings), `list_steps`, `get_step`,
+`list_templates`, and for signed-in people `list_my_projects`, `get_project` (steps,
+settings with secrets hidden, links and validation problems) and `list_my_connections`
+(no secret values). Every project and connection query filters on the person's own id, so
+the model cannot reach anyone else's data whatever it asks for; guests get the documentation
+tools only. The browser keeps the conversation (localStorage, per account) and sends its
+text turns with each question; the server keeps the last 20. Each question is logged as an
+`assistant.ask` event (without its text), which also enforces the daily limit; guests are
+counted per address.
+
+Claude goes through the Anthropic SDK with the stable instructions cached and, on the
+Claude API, the server-side refusal fallback; other providers use the OpenAI chat
+completions API with function calling, streamed or not. By default the assistant uses
+Ollama's `lfm3` (`AIUI_ASSISTANT_PROVIDER`, `AIUI_ASSISTANT_BASE_URL` and `AIUI_ASSISTANT_MODEL`
+set the starting values). Small local models often run with a 4,096-token context, so with an
+OpenAI-compatible provider lookups return less (two sections of 1,500 characters per search,
+6,000 characters per tool result), repeated searches are refused, and after three rounds of
+lookups the model is asked to answer without tools.
 
 ## 12. Security
 

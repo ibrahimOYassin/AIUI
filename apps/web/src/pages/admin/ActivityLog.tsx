@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { History, KeyRound, FolderKanban, Puzzle, ShieldCheck, CircleDot } from 'lucide-react';
+import { History, KeyRound, FolderKanban, Puzzle, ShieldCheck, CircleDot, Sparkles } from 'lucide-react';
 import type { ActivityEvent, AdminUser } from '@aiui/shared';
 import { api, errorMessage } from '../../api';
 import { Button, ErrorBox, Spinner } from '../../components/ui';
@@ -11,6 +11,7 @@ const TYPES: { id: string; label: string }[] = [
   { id: 'auth', label: 'Sign-ins' },
   { id: 'project', label: 'Projects' },
   { id: 'plugin', label: 'Plugins' },
+  { id: 'assistant', label: 'Assistant' },
   { id: 'admin', label: 'Admin actions' },
 ];
 
@@ -20,6 +21,7 @@ function TypeIcon({ type }: { type: string }) {
   if (prefix === 'project') return <FolderKanban size={14} />;
   if (prefix === 'plugin') return <Puzzle size={14} />;
   if (prefix === 'admin') return <ShieldCheck size={14} />;
+  if (prefix === 'assistant') return <Sparkles size={14} />;
   return <CircleDot size={14} />;
 }
 

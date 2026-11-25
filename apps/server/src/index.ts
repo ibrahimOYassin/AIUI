@@ -4,9 +4,11 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import type { AppConfig } from '@aiui/shared';
 import { config } from './config.ts';
 import { HttpError, ensureLocalUser, seedAdmin } from './http.ts';
+import { assistantInfo } from './assistant/settings.ts';
 import { getSettings } from './platform.ts';
 import { seedPlugins } from './plugins.ts';
 import { adminRouter } from './routes/admin.ts';
+import { assistantRouter } from './routes/assistant.ts';
 import { authRouter } from './routes/auth.ts';
 import { connectionsRouter } from './routes/connections.ts';
 import { devRouter } from './routes/dev.ts';
@@ -46,10 +48,12 @@ api.get('/config', (_req, res) => {
     mode: config.mode, version: config.version,
     allowRun: settings.runAccess !== 'none',
     allowRegistration: config.mode === 'local' || settings.allowRegistration,
+    assistant: assistantInfo(),
   } satisfies AppConfig);
 });
 api.use(authRouter);
 api.use(publicRouter);
+api.use(assistantRouter);
 api.use(projectsRouter);
 api.use(connectionsRouter);
 api.use(marketRouter);

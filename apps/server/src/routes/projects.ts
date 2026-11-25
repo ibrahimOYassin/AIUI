@@ -26,7 +26,7 @@ import { resolvedConnections } from './connections.ts';
 export const projectsRouter = Router();
 projectsRouter.use(requireAuth);
 
-interface ProjectRow {
+export interface ProjectRow {
   id: string;
   owner_id: string;
   name: string;
@@ -41,7 +41,7 @@ interface ProjectRow {
 const TYPES: ProjectType[] = ['workflow', 'agent', 'solution'];
 const MAX_NODES = 500;
 
-function toProject(row: ProjectRow): Project {
+export function toProject(row: ProjectRow): Project {
   return {
     id: row.id, name: row.name, description: row.description, type: row.type,
     graph: JSON.parse(row.graph) as Graph, settings: JSON.parse(row.settings) as ProjectSettings,
@@ -56,7 +56,7 @@ function toSummary(row: ProjectRow): ProjectSummary {
   };
 }
 
-function ownedRow(userId: string, id: string): ProjectRow {
+export function ownedRow(userId: string, id: string): ProjectRow {
   const row = sql.get<ProjectRow>('SELECT * FROM projects WHERE id = ? AND owner_id = ?', id, userId);
   if (!row) throw new HttpError(404, 'Project not found.');
   return row;
@@ -99,7 +99,7 @@ function cleanGraph(input: unknown): Graph {
   return { nodes, edges };
 }
 
-function buildInput(userId: string, project: Project): BuildInput {
+export function buildInput(userId: string, project: Project): BuildInput {
   const registry = userRegistry(userId);
   return { project, nodeTypes: registry.nodeTypes, connectionTypes: registry.connectionTypes, connections: resolvedConnections(userId) };
 }

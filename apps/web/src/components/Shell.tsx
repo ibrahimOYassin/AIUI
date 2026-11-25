@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, Code2, Home, LogIn, Moon, Plug, Search, ShieldCheck, Store, Sun, UserRound } from 'lucide-react';
+import { AssistantPanel, AssistantRailButton, useAssistantPanel } from './Assistant';
 import { Icon } from '../lib/icons';
 import { isTrigger } from '../lib/graph';
 import { isGuestPath } from '../lib/site';
@@ -17,7 +18,7 @@ const NAV = [
 ];
 
 /** What a guest can do from the command palette; the rest needs an account. */
-const GUEST_COMMANDS = new Set(['new', 'home', 'market', 'docs', 'tips', 'theme']);
+const GUEST_COMMANDS = new Set(['new', 'home', 'market', 'docs', 'tips', 'theme', 'assistant']);
 
 export function Shell() {
   const theme = useApp((s) => s.theme);
@@ -38,6 +39,11 @@ export function Shell() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen(!useApp.getState().paletteOpen);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j' && useApp.getState().config?.assistant) {
+        e.preventDefault();
+        const panel = useAssistantPanel.getState();
+        panel.setOpen(!panel.open);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -62,6 +68,7 @@ export function Shell() {
             <span>Admin</span>
           </NavLink>
         )}
+        <AssistantRailButton />
         <span className="grow" />
         <button type="button" className="rail-item" onClick={() => setPaletteOpen(true)} title="Search and commands (Ctrl+K)">
           <Search size={19} />
@@ -91,6 +98,7 @@ export function Shell() {
       <main className="shell-main">
         <Outlet />
       </main>
+      <AssistantPanel />
       {paletteOpen && <CommandPalette />}
     </div>
   );
@@ -112,6 +120,8 @@ function CommandPalette() {
   const nodeTypes = useApp((s) => s.catalog.nodeTypes);
   const isAdmin = useApp((s) => !!s.user?.roles.includes('admin'));
   const signedIn = useApp((s) => !!s.user);
+  const assistantInfo = useApp((s) => s.config?.assistant ?? null);
+  const assistant = assistantInfo && (signedIn || assistantInfo.guests) ? assistantInfo : null;
   const project = useEditor((s) => s.project);
   const [q, setQ] = useState('');
   const [index, setIndex] = useState(0);
@@ -130,6 +140,7 @@ function CommandPalette() {
       { id: 'account', label: 'Go to Account', hint: 'Navigate', icon: 'user-round', run: go('/account') },
       { id: 'docs', label: 'Open the documentation', hint: 'Help', icon: 'book-open', run: go('/docs') },
       { id: 'tips', label: 'Show the getting-started tips', hint: 'Help', icon: 'sparkles', run: go('/?tips=1') },
+      ...(assistant ? [{ id: 'assistant', label: `Ask ${assistant.name}`, hint: 'Help', icon: 'message-circle', run: () => useAssistantPanel.getState().setOpen(true) }] : []),
       {
         id: 'theme',
         label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
@@ -150,6 +161,7 @@ function CommandPalette() {
         { id: 'admin-reports', label: 'Admin: Reports and activity', hint: 'Admin', icon: 'chart-line', run: go('/admin') },
         { id: 'admin-users', label: 'Admin: Users', hint: 'Admin', icon: 'users', run: go('/admin/users') },
         { id: 'admin-plugins', label: 'Admin: Plugins', hint: 'Admin', icon: 'puzzle', run: go('/admin/plugins') },
+        { id: 'admin-assistant', label: 'Admin: AI Assistant', hint: 'Admin', icon: 'sparkles', run: go('/admin/assistant') },
         { id: 'admin-settings', label: 'Admin: Settings', hint: 'Admin', icon: 'settings', run: go('/admin/settings') },
       );
     }
@@ -177,7 +189,7 @@ function CommandPalette() {
       }
     }
     return signedIn ? list : list.filter((c) => GUEST_COMMANDS.has(c.id));
-  }, [navigate, theme, nodeTypes, inIde, isAdmin, signedIn]);
+  }, [navigate, theme, nodeTypes, inIde, isAdmin, signedIn, assistant]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();

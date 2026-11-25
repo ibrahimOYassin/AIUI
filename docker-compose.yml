@@ -38,6 +38,10 @@ services:
       AIUI_ADMIN_NAME: ${AIUI_ADMIN_NAME:-}
       # Web origins allowed to call the API directly, comma separated.
       AIUI_CORS_ORIGINS: ${AIUI_CORS_ORIGINS:-}
+      # Starting settings of the AI Assistant (Admin -> Assistant can change them).
+      AIUI_ASSISTANT_PROVIDER: ${AIUI_ASSISTANT_PROVIDER:-}
+      AIUI_ASSISTANT_BASE_URL: ${AIUI_ASSISTANT_BASE_URL:-}
+      AIUI_ASSISTANT_MODEL: ${AIUI_ASSISTANT_MODEL:-}
     volumes:
       - aiui-data:/data
     ports:

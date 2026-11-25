@@ -13,7 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test, { after, before } from 'node:test';
 import type {
-  ActivityPage, AdminPlugin, AdminUser, AdminUserDetail, MeResponse, PlatformSettings, ReportOverview,
+  ActivityPage, AdminPlugin, AdminUser, AdminUserDetail, AppConfig, AssistantEvent, AssistantSettings, MeResponse, PlatformSettings, ReportOverview,
   AuthResponse, Catalog, Connection, DevListing, Earnings, GenerateResponse, Graph, Issue, Listing, ListingDetail,
   PluginManifest, Project, RunEvent,
 } from '@aiui/shared';
@@ -83,7 +83,7 @@ let alice: AuthResponse;
 let bob: AuthResponse;
 
 test('accounts: register, sign in, and no auto sign-in in web mode', async () => {
-  assert.deepEqual((await api('GET', '/config')).data, { mode: 'web', version: '0.1.0', allowRun: true, allowRegistration: true });
+  assert.deepEqual((await api('GET', '/config')).data, { mode: 'web', version: '0.1.0', allowRun: true, allowRegistration: true, assistant: null });
   assert.equal((await api('POST', '/auth/local')).status, 403);
   assert.equal((await api('GET', '/projects')).status, 401);
   assert.equal((await api('POST', '/auth/register', undefined, { email: 'a@x.io', name: 'Alice', password: 'short' })).status, 400);
@@ -527,6 +527,74 @@ test('admin: settings control sign-ups and who can run', async () => {
   await api('PUT', '/admin/settings', admin.token, { runAccess: 'none' });
   assert.equal((await api<{ allowRun: boolean }>('GET', '/config')).data.allowRun, false);
   await api('PUT', '/admin/settings', admin.token, { runAccess: 'all', allowRegistration: true });
+});
+
+/** Asks the assistant and returns the answer text, or the error the server sent. */
+async function askAssistant(token: string | undefined, question: string): Promise<{ status: number; text: string; events: AssistantEvent[] }> {
+  const response = await fetch(`${BASE}/assistant/chat`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: question }] }),
+  });
+  const raw = await response.text();
+  if (response.status !== 200) return { status: response.status, text: raw, events: [] };
+  const events = raw.split('\n').filter(Boolean).map((line) => JSON.parse(line) as AssistantEvent);
+  const text = events.map((e) => (e.type === 'text' ? e.text : e.type === 'error' ? `ERROR:${e.message}` : '')).join('');
+  return { status: 200, text, events };
+}
+
+test('assistant: set up by an administrator, reads only your own projects, guests get the docs', async () => {
+  assert.equal((await api<AppConfig>('GET', '/config')).data.assistant, null, 'off until an administrator turns it on');
+  assert.equal((await askAssistant(alice.token, 'hello')).status, 404);
+  assert.equal((await api('GET', '/admin/assistant', alice.token)).status, 403);
+  assert.equal((await api('PUT', '/admin/assistant', alice.token, { enabled: true })).status, 403);
+
+  const saved = await api<AssistantSettings>('PUT', '/admin/assistant', admin.token, {
+    enabled: true, provider: 'openai', model: 'mock-model', baseUrl: `${mock.url}/assistant/v1`, apiKey: 'sk-assistant-secret', dailyLimit: 3, name: 'Helper',
+  });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.data.apiKeySet, true);
+  assert.ok(!JSON.stringify((await api('GET', '/admin/assistant', admin.token)).data).includes('sk-assistant-secret'), 'the key is never sent back');
+  assert.deepEqual((await api<AppConfig>('GET', '/config')).data.assistant, { name: 'Helper', greeting: saved.data.greeting, guests: false });
+  assert.equal((await askAssistant(undefined, 'hello')).status, 401, 'guests need an account unless the administrator allows them');
+  assert.equal((await api('PUT', '/admin/assistant', admin.token, { provider: 'other' })).status, 400);
+
+  // Bob has a project; the model asks for it while talking to Alice and gets nothing.
+  const bobs = (await api<Project>('POST', '/projects', bob.token, { name: 'Bob Secret Plan', type: 'workflow' })).data;
+  const asAlice = await askAssistant(alice.token, `What is in PROJECT:${bobs.id}?`);
+  assert.equal(asAlice.status, 200, asAlice.text);
+  assert.match(asAlice.text, /TOOLS:search_docs,list_steps,get_step,list_templates,list_my_projects,get_project,list_my_connections/);
+  assert.match(asAlice.text, /Orders Digest/, 'her own projects are listed');
+  assert.match(asAlice.text, /no project with that id/);
+  assert.ok(!asAlice.text.includes('Bob Secret Plan'), "never another person's project");
+  assert.match(asAlice.text, /Connections/, 'the documentation is searched');
+  assert.deepEqual(asAlice.events.filter((e) => e.type === 'tool').map((e) => (e as { label: string }).label), ['Looking at your projects', 'Reading your project', 'Searching the documentation']);
+  assert.deepEqual(asAlice.events.at(-1), { type: 'done', remaining: 2 });
+  const call = mock.requests.filter((r) => r.path === '/assistant/v1/chat/completions').at(-1)!;
+  assert.equal(call.headers.authorization, 'Bearer sk-assistant-secret');
+
+  // Her own project is read in full, with step settings and problems.
+  const own = await askAssistant(alice.token, `Explain PROJECT:${projectId}`);
+  assert.match(own.text, /"name":"each"/);
+  assert.match(own.text, /"links":\[/);
+  await askAssistant(alice.token, 'one more');
+  const limited = await askAssistant(alice.token, 'and another');
+  assert.equal(limited.status, 429, 'the daily limit applies');
+
+  // Guests, once allowed, only get the documentation tools.
+  await api('PUT', '/admin/assistant', admin.token, { access: 'everyone', dailyLimit: 0 });
+  assert.equal((await api<AppConfig>('GET', '/config')).data.assistant?.guests, true);
+  const guest = await askAssistant(undefined, `PROJECT:${bobs.id}`);
+  assert.equal(guest.status, 200);
+  assert.match(guest.text, /TOOLS:search_docs,list_steps,get_step,list_templates\n/);
+  assert.match(guest.text, /SYSTEM:guest/);
+  assert.match(guest.text, /Unknown tool "list_my_projects"/);
+  assert.ok(!guest.text.includes('Bob Secret Plan'));
+
+  const tested = await api<{ ok: boolean; message: string }>('POST', '/admin/assistant/test', admin.token, {});
+  assert.equal(tested.data.ok, true, tested.data.message);
+  await api('PUT', '/admin/assistant', admin.token, { enabled: false, clearApiKey: true });
+  assert.equal((await api<AssistantSettings>('GET', '/admin/assistant', admin.token)).data.apiKeySet, false);
 });
 
 test('public exposure: cross-origin access, private-address checks, sign-in throttling', async () => {

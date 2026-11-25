@@ -21,6 +21,7 @@ works, you download it as a complete **Python** or **C#** project that runs anyw
 - [Downloading your project as code](#downloading-your-project-as-code)
 - [Marketplace: adding more steps](#marketplace-adding-more-steps)
 - [Publishing your own plugins](#publishing-your-own-plugins)
+- [The AI Assistant](#the-ai-assistant)
 - [Your account](#your-account)
 - [Common questions](#common-questions)
 
@@ -212,6 +213,23 @@ Anyone can publish plugins for others to use.
 
 The Developer page shows your installs and earnings. Writing a plugin does require code:
 each step needs a Python and a C# version.
+
+## The AI Assistant
+
+Press **Assistant** in the side bar (or Ctrl+J) to ask questions in plain words, such as
+"Which step reads a web page?" or "Why does this project not run?". It answers from this
+guide and the rest of the AIUI documentation, and it can read your own projects and
+connections to explain them and point out problems. With a project open, "this project"
+means that one.
+
+It only reads: it never changes a project or a setting, and it never sees other people's
+projects or your keys. Your conversation is kept in your browser; **New conversation**
+clears it.
+
+The assistant appears once the site's administrator turns it on under
+**Admin → Assistant**. There they choose the AI model (Claude, or any OpenAI-compatible
+server such as Ollama), add their own instructions and extra knowledge, decide whether
+guests may use it, and set how many questions each person may ask per day.
 
 ## Your account
 

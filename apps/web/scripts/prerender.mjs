@@ -7,6 +7,7 @@
  * - Keeps the empty app page as app.html, the fallback for every other address (the Marketplace, and the
  *   pages that need an account, which robots.txt keeps crawlers away from).
  * - Writes robots.txt, sitemap.xml, llms.txt and llms-full.txt.
+ * - Writes docs/APP_GUIDE.md, the Docs page as Markdown, which the AI Assistant searches.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -125,9 +126,11 @@ fs.writeFileSync(path.join(dist, 'app.html'), shell.replace(/\s*<link rel="canon
 const catalog = builtinCatalog();
 const embedded = `<script id="aiui-catalog" type="application/json">${JSON.stringify(catalog).replace(/</g, '\\u003c')}</script>`;
 
+let docsBody = '';
 for (const key of PRERENDERED) {
   const page = PUBLIC_PAGES[key];
   const body = render(page.path, catalog);
+  if (key === 'docs') docsBody = body;
   const ld = jsonLd({ '@context': 'https://schema.org', '@graph': STRUCTURED[key] ?? [] });
   const html = withPage(shell, page)
     .replace('</head>', `    ${ld}\n    ${embedded}\n  </head>`)
@@ -225,6 +228,50 @@ const readme = path.join(root, 'README.md');
 if (fs.existsSync(readme)) {
   const text = fs.readFileSync(readme, 'utf8').replace(/^<img[^>]*>\s*/m, '');
   fs.writeFileSync(path.join(dist, 'llms-full.txt'), `${text.trim()}\n`);
+}
+
+// ── The Docs page as Markdown, for the AI Assistant (the API image copies docs/) ──
+
+/** Enough HTML-to-Markdown for the Docs page: headings, paragraphs, lists, links, code and bold. */
+function docsMarkdown(html) {
+  const article = /<article class="docs-body">([\s\S]*)<\/article>/.exec(html)?.[1] ?? '';
+  const entities = { amp: '&', lt: '<', gt: '>', quot: '"', nbsp: ' ', '#x27': "'", '#39': "'" };
+  const text = (s) => s.replace(/<[^>]+>/g, '').replace(/&(amp|lt|gt|quot|nbsp|#x27|#39);/g, (_, e) => entities[e]);
+  let md = article
+    .replace(/<(svg|button|figure)\b[\s\S]*?<\/\1>/g, '')
+    .replace(/<img[^>]*>/g, '')
+    .replace(/<section id="([\w-]+)"[^>]*>/g, '\n@@SECTION:$1@@\n')
+    .replace(/<h([1-4])[^>]*>([\s\S]*?)<\/h\1>/g, (_, level, inner) => `\n\n${'#'.repeat(Math.max(2, Number(level)))} ${text(inner).trim()}\n\n`)
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g, (_, href, inner) => {
+      const label = text(inner).trim();
+      const target = href.startsWith('#') ? `/docs${href}` : href;
+      return label && (target.startsWith('/') || target.startsWith('http')) ? `[${label}](${target})` : label;
+    })
+    .replace(/<code[^>]*>([\s\S]*?)<\/code>/g, (_, inner) => `\`${text(inner)}\``)
+    .replace(/<(strong|b)>([\s\S]*?)<\/\1>/g, (_, _tag, inner) => `**${text(inner)}**`)
+    .replace(/<li[^>]*>/g, '\n- ')
+    .replace(/<tr[^>]*>/g, '\n| ')
+    .replace(/<\/(span|small|em)>/g, '</$1> ')
+    .replace(/<\/(aside|header|figcaption|h5|h6)>/g, '\n')
+    .replace(/<\/(p|div|ul|ol|li|summary|details|blockquote|table)>|<br\s*\/?>/g, '\n')
+    .replace(/<\/t[dh]>/g, ' | ');
+  md = text(md)
+    .split('\n')
+    .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/@@SECTION:([\w-]+)@@\s*(## [^\n]+)/g, '$2\n\nIn the app: [Docs](/docs#$1)')
+    .replace(/@@SECTION:[\w-]+@@/g, '')
+    .replace(/(\*\*[^*\n]+\*\*)(?=[A-Za-z])/g, '$1 ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return `# Learn AIUI (the Docs page)\n\n<!-- Generated from apps/web/src/pages/Docs.tsx by apps/web/scripts/prerender.mjs on build. Do not edit. -->\n\n${md}\n`;
+}
+
+if (docsBody) {
+  const guide = docsMarkdown(docsBody);
+  fs.writeFileSync(path.join(root, 'docs', 'APP_GUIDE.md'), guide);
+  fs.appendFileSync(path.join(dist, 'llms-full.txt'), `\n\n${guide.replace(/<!--[\s\S]*?-->\n\n/, '')}`);
+  console.log(`wrote docs/APP_GUIDE.md (${Math.round(guide.length / 1024)} kB)`);
 }
 
 fs.rmSync(ssr, { recursive: true, force: true });

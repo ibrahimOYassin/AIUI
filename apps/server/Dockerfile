@@ -25,6 +25,9 @@ COPY packages/shared packages/shared
 COPY apps/server/src apps/server/src
 COPY plugins plugins
 COPY runtime runtime
+# The documentation the AI Assistant searches.
+COPY README.md ./
+COPY docs docs
 
 ENV NODE_ENV=production \
     PORT=4317 \
