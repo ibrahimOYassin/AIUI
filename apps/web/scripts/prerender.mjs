@@ -269,6 +269,7 @@ function docsMarkdown(html) {
 
 if (docsBody) {
   const guide = docsMarkdown(docsBody);
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true }); // missing inside the web image
   fs.writeFileSync(path.join(root, 'docs', 'APP_GUIDE.md'), guide);
   fs.appendFileSync(path.join(dist, 'llms-full.txt'), `\n\n${guide.replace(/<!--[\s\S]*?-->\n\n/, '')}`);
   console.log(`wrote docs/APP_GUIDE.md (${Math.round(guide.length / 1024)} kB)`);
